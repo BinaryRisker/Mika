@@ -54,6 +54,8 @@ data class BatchStep(val tool: String, val argsJson: String, val until: Until? =
 /**
  * 一次执行多个连续动作,逐步核对,出意外就停。每一步(第二步起先等界面稳定)经 [ActionExecutor] 执行,
  * 和单步同一套顺序;批里不使用、也不假设任何同意,不可逆的一步命中就停在它之前,不执行。
+ * 发送和删除被拦下时,整批结果保留执行入口交给对话的那一份:人不在是对象、正文和「没有发出」或「没有删除」,
+ * 人在场是这一次确认的说明。花钱的一步仍按付款改写,不把发送说成花钱。
  * 核对不通过:工具失败、被切到别的 App、输入回读不一致。一步带了等待条件([Until])时做完先等它成立
  * ([ToolDispatcher.waitUntil]:读屏比字面,不问模型),到时限、看出弹框或换了 App 就停;等了多久写进这一步的结果。
  * 每一步对守卫和运行记录都是一个动作(运行记录里 source = "batch")。
@@ -101,9 +103,12 @@ class BatchRunner(
             val out = executor.run(Part.ToolCall("$callId.${i + 1}", s.tool, s.argsJson), Origin.Batch(step))
             val before = out.before
             note(s, null, before)
-            fun notRun(reason: String, extra: JsonObject = JsonObject(emptyMap()), message: String? = null) = Stop(i, reason, entry(s.tool) {
+            fun notRun(
+                reason: String, extra: JsonObject = JsonObject(emptyMap()), message: String? = null, kept: JsonObject? = null,
+            ) = Stop(i, reason, entry(s.tool) {
                 put("ok", false); put("error", reason); put("executed", false)
                 message?.let { put("message", it) }
+                kept?.forEach { (k, v) -> if (k != "ok") put(k, v) }
                 if (before.isNotEmpty()) put("guard", JsonArray(before.map { it.toJson() }))
             }, executed = false, extra = extra)
             val exec = when (out) {
@@ -112,8 +117,9 @@ class BatchRunner(
                     val hit = out.hit
                     // 应用权限拒绝:把执行入口给的下一步说明一起交给模型,别让它只看到错误码
                     val message = (out.content["message"] as? JsonPrimitive)?.contentOrNull?.takeIf { appAccessDenied(out.code) }
-                    stop = if (hit == null) notRun(out.code, message = message)
-                    else notRun(out.code, buildJsonObject { put("action", hit.action.name); put("matched", hit.matched) }, message)
+                    val kept = sendDeletePayload(out.content)
+                    val extra = kept ?: hit?.let { buildJsonObject { put("action", it.action.name); put("matched", it.matched) } } ?: JsonObject(emptyMap())
+                    stop = notRun(out.code, extra, message, kept)
                     break
                 }
                 is ActionOutcome.Cancelled -> { stop = notRun("cancelled"); break }
@@ -203,11 +209,14 @@ class BatchRunner(
                 "confirmation_required" -> {
                     put("error", "confirmation_required")
                     stop.extra.forEach { (k, v) -> put(k, v) }
-                    val what = stop.extra["matched"]?.let { (it as JsonPrimitive).content }
-                    put("message", "Step ${stop.index + 1} of ${steps.size} spends money ($what). " +
-                        "It was not run, and the steps after it were not run either. Payment steps never go in do_steps: " +
-                        if (executor.confirms) "follow the step's message (request_confirmation, or hand_to_user for a payment), then do that step on its own as a single tool call."
-                        else "do it on its own as a single tool call, not as part of a batch.")
+                    // 发送和删除沿用执行入口的说明。付款才改写成「花钱」,并且没关卡时不提 request_confirmation。
+                    if (!keepsOutbound(stop)) {
+                        val what = stop.extra["matched"]?.let { (it as JsonPrimitive).content }
+                        put("message", "Step ${stop.index + 1} of ${steps.size} spends money ($what). " +
+                            "It was not run, and the steps after it were not run either. Payment steps never go in do_steps: " +
+                            if (executor.confirms) "follow the step's message (request_confirmation, or hand_to_user for a payment), then do that step on its own as a single tool call."
+                            else "do it on its own as a single tool call, not as part of a batch.")
+                    }
                     put("counts_as_failure", false)
                 }
                 NEW_MESSAGE -> {
@@ -218,7 +227,11 @@ class BatchRunner(
                         "Read the message first, then decide what to do next.")
                     put("counts_as_failure", false)
                 }
-                else -> {
+                else -> if (keepsOutbound(stop)) {
+                    put("error", stop.reason)
+                    stop.extra.forEach { (k, v) -> put(k, v) }
+                    put("counts_as_failure", false)
+                } else {
                     put("error", "batch_stopped")
                     put("reason", stop.reason)
                     val n = "Step ${stop.index + 1} of ${steps.size}"
@@ -238,13 +251,40 @@ class BatchRunner(
             put("completed", completed); put("total", steps.size)
             put("steps", JsonArray(done + listOfNotNull(stop?.entry) + stop?.rest.orEmpty()))
             screen?.let { put("screen", it) }
-            if (stop != null) put("recoverable", true)
+            if (stop != null && stop.extra["recoverable"] == null) put("recoverable", true)
         }
         // 子步的画面已经逐个存过
         // 最后一个子步发给模型的画面(能看图的主模型才有)留给循环,接在整批结果后面
         return ToolExecution(content, changed = last?.changed, frame = if (!executor.recorder.savesScreens) last?.frame ?: last?.image else null,
             screenElements = last?.screenElements, images = last?.images.orEmpty(), imageIds = last?.imageIds.orEmpty(), place = last?.place,
             observations = seen)
+    }
+
+    /**
+     * 发送或删除的拒绝说明。草稿和「请确认这一次发送/删除」原样留下。
+     * 带应付金额的删除仍是付款,说明以 "This step spends money" 开头,不在这里。
+     */
+    private fun sendDeletePayload(content: JsonObject): JsonObject? {
+        val error = (content["error"] as? JsonPrimitive)?.contentOrNull ?: return null
+        val message = (content["message"] as? JsonPrimitive)?.contentOrNull
+        val outbound = error == "not_sent" || error == "not_deleted" ||
+            (error == "confirmation_required" && message != null &&
+                (message.startsWith("This send was not run") || message.startsWith("This delete was not run")))
+        if (!outbound) return null
+        return buildJsonObject {
+            for (k in listOf("error", "action", "matched", "message", "target", "body", "draft", "executed", "recoverable", "counts_as_failure")) {
+                content[k]?.let { put(k, it) }
+            }
+            if (content["executed"] == null) put("executed", false)
+        }
+    }
+
+    /** 这一停是发送或删除的草稿,或是人在场时那一次确认,不是付款。 */
+    private fun keepsOutbound(stop: Stop): Boolean {
+        if (stop.reason == "not_sent" || stop.reason == "not_deleted") return true
+        if (stop.reason != "confirmation_required") return false
+        val message = (stop.extra["message"] as? JsonPrimitive)?.contentOrNull ?: return false
+        return message.startsWith("This send was not run") || message.startsWith("This delete was not run")
     }
 
     private fun note(s: BatchStep, exec: ToolExecution?, v: List<GuardVerdict>) {

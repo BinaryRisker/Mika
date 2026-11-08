@@ -88,4 +88,25 @@
     <string name="skills_imported">Importada</string>
     <string name="skill_builtin_name">Ya hay una habilidad integrada con este nombre. Cámbialo y vuelve a intentarlo.</string>
     <string name="skill_draft_pending">Ya hay un borrador con este nombre esperando revisión. Resuelve ese primero.</string>
+    <string name="packs_title">Paquetes</string>
+    <string name="packs_sub">Instalar habilidades, scripts y rutinas juntos</string>
+    <string name="backup_export">Exportar</string>
+    <string name="backup_export_sub">Copia cifrada de memoria, habilidades, paquetes y rutinas. Sin claves.</string>
+    <string name="packs_import">Instalar un paquete</string>
+    <string name="packs_uninstall">Quitar %1$s</string>
+    <string name="packs_uninstall_title">Rutinas activas de este paquete</string>
+    <string name="packs_keep_routines">Dejarlas activas</string>
+    <string name="packs_stop_routines">Apagarlas</string>
+    <string name="packs_installed">Instalado %1$s</string>
+    <string name="packs_rejected">No se instaló el paquete (%1$s)</string>
+    <string name="packs_removed">Paquete quitado</string>
+    <string name="backup_import">Importar</string>
+    <string name="backup_password">Contraseña</string>
+    <string name="backup_password_hint">Solo para este archivo. Mika no la guarda.</string>
+    <string name="backup_preview">%1$d recuerdos, %2$d habilidades, %3$d paquetes, %4$d rutinas, %5$d permitidos, %6$d denegados. Las rutinas entrarán apagadas y las listas se reemplazarán.</string>
+    <string name="backup_import_confirm">Importar</string>
+    <string name="backup_saved">Exportado</string>
+    <string name="backup_imported">Importado. Las rutinas están apagadas.</string>
+    <string name="backup_failed">No se pudo leer o escribir ese archivo</string>
+    <string name="backup_bad_password">Contraseña incorrecta</string>
 </resources>

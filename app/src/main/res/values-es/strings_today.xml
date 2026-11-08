@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_title">Hoy</string>
+    <string name="drawer_today">Hoy</string>
+    <string name="today_next_event">Próximo evento</string>
+    <string name="today_next_alarm">Próxima alarma</string>
+    <string name="today_waiting">Esperándote</string>
+    <string name="today_routines">Rutinas de hoy</string>
+    <string name="today_empty">Vacío</string>
+    <string name="today_status_upcoming">Aún no</string>
+    <string name="today_status_unchanged">Sin cambios</string>
+    <string name="today_status_done">Hecho</string>
+    <string name="today_status_failed">No se terminó</string>
+    <string name="today_status_quiet">Aplazado hasta que terminen las horas de silencio</string>
+    <string name="today_status_disabled">Desactivado</string>
+    <string name="today_status_recorded">Registrado</string>
+    <string name="today_folded">Agrupado %1$d veces</string>
+    <string name="today_no_alarm">No hay próxima alarma</string>
+    <string name="today_no_event">No hay evento próximo</string>
+    <string name="today_search">Buscar objetivos, resultados, archivos</string>
+    <string name="today_search_empty">Sin coincidencias</string>
+    <string name="today_unwatched">En pausa porque nadie lo vio</string>
+</resources>

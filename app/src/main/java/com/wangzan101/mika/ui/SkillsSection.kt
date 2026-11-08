@@ -101,6 +101,7 @@ internal fun SkillsSection(vm: MemoryViewModel, ui: SkillsUi, pending: Boolean) 
             ListRow(null, stringResource(R.string.skills_import), stringResource(R.string.skills_import_sub), first = true, onClick = { importing = true }) {
                 RowChevron()
             }
+            PackBackupSection()
         }
         val inUse = ui.appKnowledge.filter { it.stage != AppKnowledgeStage.Draft }
         if (inUse.isNotEmpty()) {

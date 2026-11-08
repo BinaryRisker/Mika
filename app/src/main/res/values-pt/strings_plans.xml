@@ -49,4 +49,25 @@
     <string name="plans_running_now">Em execução</string>
     <string name="trigger_deleted">A tarefa agendada foi excluída</string>
     <string name="trigger_busy">Esta tarefa ainda está em execução</string>
+    <string name="plans_kind_manual">Frase</string>
+    <string name="plans_kind_share">Compartilhar</string>
+    <string name="plans_share_text">Texto</string>
+    <string name="plans_share_image">Imagens</string>
+    <string name="plans_new_phrase">Nova frase</string>
+    <string name="plans_new_share">Nova rotina de compartilhamento</string>
+    <string name="plans_name_label">Nome</string>
+    <string name="plans_goal_label">O que fazer</string>
+    <string name="plans_share_accepts">Aceita</string>
+    <string name="plans_need_name">Digite um nome</string>
+    <string name="plans_need_goal">Digite o que deve fazer</string>
+    <string name="plans_need_share_type">Escolha texto, imagens ou ambos</string>
+    <string name="plans_create">Criar</string>
+    <string name="plans_enabled">Ativada</string>
+    <string name="plans_new_watch">Observar esta página</string>
+    <string name="plans_watch_url">URL da página</string>
+    <string name="plans_watch_expect">Mudança a esperar</string>
+    <string name="plans_need_watch_url">Digite um URL http(s)</string>
+    <string name="plans_need_watch_expect">Digite a mudança a esperar</string>
+    <string name="plans_edit_topics">Assuntos</string>
+    <string name="plans_topics_hint">Um assunto por linha</string>
 </resources>

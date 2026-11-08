@@ -170,4 +170,10 @@
     <string name="chat_placeholder_queue">写下下一件事…</string>
     <string name="voice_placeholder_queue">说下一件事…</string>
     <string name="steer_received_paused">已收到，任务继续后处理</string>
+    <string name="share_pick_title">用哪条常规处理这次分享？</string>
+    <string name="share_pick_skip">这次不用</string>
+    <string name="worth_prompt_title">要关注什么？</string>
+    <string name="worth_prompt_hint">一句短的关注</string>
+    <string name="worth_prompt_save">保存</string>
+    <string name="pending_ask_reply">刚才的问题：%1$s\n我的回答：%2$s</string>
 </resources>

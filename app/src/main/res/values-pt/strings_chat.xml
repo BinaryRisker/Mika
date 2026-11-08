@@ -180,4 +180,10 @@
     <string name="chat_placeholder_queue">Escreva a próxima tarefa…</string>
     <string name="voice_placeholder_queue">Diga a próxima tarefa…</string>
     <string name="steer_received_paused">Entendi — será usado quando a tarefa continuar</string>
+    <string name="share_pick_title">Escolha uma rotina para este compartilhamento</string>
+    <string name="share_pick_skip">Agora não</string>
+    <string name="worth_prompt_title">O que acompanhar?</string>
+    <string name="worth_prompt_hint">Um assunto curto</string>
+    <string name="worth_prompt_save">Salvar</string>
+    <string name="pending_ask_reply">Pergunta: %1$s\nMinha resposta: %2$s</string>
 </resources>

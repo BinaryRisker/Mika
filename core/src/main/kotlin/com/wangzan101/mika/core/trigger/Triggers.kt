@@ -38,14 +38,72 @@ data class TriggerDefinition(
     val baselineAtMs: Long? = null,
     /** 上次因条件满足而派发动作的那次检查的计划时间,冷却从这里算。 */
     val lastFiredAtMs: Long? = null,
+    /** 连续失败次数；第一次失败通知，之后折叠直到一次成功。 */
+    val consecutiveFailures: Int = 0,
+    /** 这一条常规自己的 token 上限；0 表示不另限。 */
+    val tokenCap: Long = 0,
+    /** 用户看得见的短名；空则用目标原文。 */
+    val displayName: String? = null,
+    /** 真：结果相对上次记下的快照无变化时不发通知。普通计划默认假（每次都通知）。 */
+    val notifyOnChange: Boolean = false,
+    /** 上次记下的日程和下一个闹钟（早晨安排）；编码见来源快照 encode。 */
+    val snapshot: String? = null,
+    /** 到点还未结束就停的分钟数；空表示不另限时长。 */
+    val stopMinutes: Int? = null,
+    /** 这一次运行发给模型的工具名；空表示按默认装配。 */
+    val toolNames: List<String> = emptyList(),
+    /** 这一次运行打开的能力 id；空表示默认能力。 */
+    val capabilityIds: List<String> = emptyList(),
+    /** 内置常规编号（如早晨安排）；空表示用户或模型建的计划。 */
+    val builtinId: String? = null,
+    /** 最近一次运行在今天这一页上的状态：recorded / unchanged / done / failed。 */
+    val lastStatus: String? = null,
+    /** 常规何时发生：到点或条件、手动（常用说法）、分享。 */
+    val kind: RoutineKind = RoutineKind.Schedule,
+    /** 分享类常规接受的类型；可多选。 */
+    val shareTypes: List<ShareType> = emptyList(),
+    /** 来自哪一份包；卸包后脚本缺失时这一次不能开工。 */
+    val packId: String? = null,
+    /** 「值得看」关注短句；空着就不能启用。 */
+    val topics: List<String> = emptyList(),
+    /** 已经分享过的网址和主张，最多 200 条。 */
+    val sharedClaims: List<SharedClaim> = emptyList(),
+    /** 「盯这个页面」的网址。 */
+    val watchUrl: String? = null,
+    /** 「盯这个页面」要等的变化。 */
+    val watchExpect: String? = null,
+    /** 连续几次通知发出后到下次运行前对话没被打开。 */
+    val unseenStreak: Int = 0,
+    /** 上一次结果通知发出后，这段对话还没被打开。 */
+    val pendingUnseen: Boolean = false,
 ) {
     init {
         require(id.isNotBlank() && threadId.isNotBlank() && goal.isNotBlank())
         require(nextAtMs >= 0 && (intervalMs == null || intervalMs > 0))
         require(calendarTime == null || (intervalMs == null && calendarZone != null && calendarDays.all { it in 1..7 }))
         require(cooldownMs == null || cooldownMs > 0)
+        require(consecutiveFailures >= 0 && tokenCap >= 0 && unseenStreak >= 0)
+        require(stopMinutes == null || stopMinutes > 0)
     }
+
+    /** 固定提醒不调模型；其余（办事、条件检查）会调。 */
+    val callsModel: Boolean get() = reminderText == null
+
+    /** 到点和条件才布置系统闹钟；手动和分享由人点选或系统分享进来。 */
+    val armsAlarm: Boolean get() = kind == RoutineKind.Schedule
+
+    /** 列表和常用说法上的短名。 */
+    val phraseName: String get() = displayName?.ifBlank { null } ?: goal.lineSequence().first().trim()
 }
+
+@Serializable
+enum class RoutineKind { Schedule, Manual, Share }
+
+@Serializable
+enum class ShareType { Text, Image }
+
+@Serializable
+data class SharedClaim(val url: String, val claim: String)
 
 @Serializable
 enum class TriggerWindowState { Claimed, Dispatched, ActionDispatched, Delivered, Skipped, Failed, Unknown }
@@ -104,7 +162,7 @@ class MemoryTriggerStore(initial: TriggerSnapshot = TriggerSnapshot(emptyList(),
         val active = ledger.values.filter { it.state == TriggerWindowState.Claimed ||
             it.state == TriggerWindowState.Dispatched || it.state == TriggerWindowState.ActionDispatched }
             .map { it.triggerId }.toSet()
-        val due = triggers.values.filter { it.enabled && it.id !in active && it.nextAtMs <= nowMs &&
+        val due = triggers.values.filter { it.armsAlarm && it.enabled && it.id !in active && it.nextAtMs <= nowMs &&
             ledger["${it.id}:${it.nextAtMs}"] == null && eligible(it) } // 和 TriggerDefinition.slotTaken 一致
         return due.map { t ->
             val interval = t.intervalMs
@@ -146,7 +204,7 @@ class MemoryTriggerStore(initial: TriggerSnapshot = TriggerSnapshot(emptyList(),
     }
 
     @Synchronized override fun retireDeliveredOneShots() {
-        val retired = triggers.values.filter { it.intervalMs == null && it.calendarTime == null && ledger.values.any { w ->
+        val retired = triggers.values.filter { it.armsAlarm && it.intervalMs == null && it.calendarTime == null && ledger.values.any { w ->
             w.triggerId == it.id && w.dueAtMs == it.nextAtMs && w.state == TriggerWindowState.Delivered } }
             .map { it.id }
         retired.forEach { id -> triggers.remove(id); ledger.entries.removeAll { it.value.triggerId == id } }
@@ -209,20 +267,36 @@ fun upcoming(def: TriggerDefinition, afterMs: Long, count: Int): List<Long> {
 /** 排期由宿主实现；核心负责先记账再派发，异常重启时不会重复执行已认领的时段。 */
 class TriggerEngine(private val store: TriggerStore, private val scheduleAlarm: (Long?) -> Unit,
     private val isIdle: () -> Boolean = { true }, private val idleRetryMs: Long = 60_000L,
+    private val quietHours: () -> QuietHours = { QuietHours.OFF },
+    private val zone: () -> ZoneId = { ZoneId.systemDefault() },
     private val dispatch: (TriggerDefinition, TriggerWindow) -> Unit) {
     fun rearm(nowMs: Long) {
         store.windows().filter { it.state == TriggerWindowState.Claimed }
             .forEach { store.mark(it.key, TriggerWindowState.Unknown, "process restarted before dispatch confirmation") }
         val idle = isIdle()
+        val quiet = quietHours()
+        val z = zone()
         val windows = store.windows()
         val active = windows.filter { it.state == TriggerWindowState.Claimed ||
             it.state == TriggerWindowState.Dispatched || it.state == TriggerWindowState.ActionDispatched }
             .map { it.triggerId }.toSet()
         // 时段已记过账的计划 claimDue 不会认领,不为它排闹钟:按到期时间排就是「马上响」,响了又认领不了,一直空转
-        scheduleAlarm(store.all().filter { it.enabled && (it.id in active || !it.slotTaken(windows)) }.minOfOrNull {
-            if (it.id in active) nowMs + idleRetryMs
+        // 免打扰内会调模型的计划不认领,闹钟排到区间结束,避免马上响、跳过、再马上响
+        scheduleAlarm(store.all().filter { it.armsAlarm && it.enabled && (it.id in active || !it.slotTaken(windows)) }.minOfOrNull {
+            val due = if (it.id in active) nowMs + idleRetryMs
             else maxOf(if (it.idleOnly && !idle) nowMs + idleRetryMs else nowMs, it.nextAtMs)
+            postponeForQuiet(it, due, quiet, z)
         })
+    }
+
+    /** 记下这一次结局，返回要不要发结果通知。没有这条计划时按要通知处理。 */
+    fun notePlanResult(id: String, result: PlanResult): Boolean {
+        val trigger = store.get(id) ?: return true
+        val decision = FailureFold.note(trigger.consecutiveFailures, result)
+        if (decision.consecutiveFailures != trigger.consecutiveFailures) {
+            store.upsert(trigger.copy(consecutiveFailures = decision.consecutiveFailures))
+        }
+        return decision.notify
     }
 
     /**
@@ -231,8 +305,12 @@ class TriggerEngine(private val store: TriggerStore, private val scheduleAlarm: 
      */
     fun setEnabled(id: String, enabled: Boolean, nowMs: Long): Boolean {
         val trigger = store.get(id) ?: return false
+        if (enabled && WorthReading.isThis(trigger) && !WorthReading.canEnable(trigger)) return false
         if (enabled && trigger.slotTaken(store.windows())) return false
-        store.upsert(trigger.copy(enabled = enabled))
+        val next = if (enabled && trigger.calendarTime != null && trigger.nextAtMs <= nowMs)
+            nextCalendarAt(trigger.calendarTime, trigger.calendarZone!!, trigger.calendarDays, nowMs)
+        else trigger.nextAtMs
+        store.upsert(trigger.copy(enabled = enabled, nextAtMs = next))
         rearm(nowMs)
         return true
     }
@@ -254,7 +332,16 @@ class TriggerEngine(private val store: TriggerStore, private val scheduleAlarm: 
 
     fun fire(nowMs: Long) {
         val idle = isIdle()
-        store.claimDue(nowMs) { !it.idleOnly || idle }.forEach { window ->
+        val quiet = quietHours()
+        val z = zone()
+        store.claimDue(nowMs) { trigger ->
+            when {
+                !trigger.armsAlarm -> false
+                trigger.idleOnly && !idle -> false
+                trigger.callsModel && quiet.active(nowMs, z) -> false
+                else -> true
+            }
+        }.forEach { window ->
             val trigger = store.get(window.triggerId) ?: return@forEach
             try {
                 dispatch(trigger, window)
@@ -264,5 +351,10 @@ class TriggerEngine(private val store: TriggerStore, private val scheduleAlarm: 
             }
         }
         rearm(nowMs)
+    }
+
+    private fun postponeForQuiet(trigger: TriggerDefinition, due: Long, quiet: QuietHours, z: ZoneId): Long {
+        if (!trigger.callsModel || !quiet.active(due, z)) return due
+        return maxOf(due, quiet.endAtMs(due, z))
     }
 }

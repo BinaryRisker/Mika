@@ -88,4 +88,25 @@
     <string name="skills_imported">Importada</string>
     <string name="skill_builtin_name">Já existe uma habilidade integrada com esse nome. Mude o nome e tente de novo.</string>
     <string name="skill_draft_pending">Já há um rascunho com esse nome esperando revisão. Resolva esse primeiro.</string>
+    <string name="packs_title">Pacotes</string>
+    <string name="packs_sub">Instalar habilidades, scripts e rotinas juntos</string>
+    <string name="backup_export">Exportar</string>
+    <string name="backup_export_sub">Cópia criptografada de memória, habilidades, pacotes e rotinas. Sem chaves.</string>
+    <string name="packs_import">Instalar um pacote</string>
+    <string name="packs_uninstall">Remover %1$s</string>
+    <string name="packs_uninstall_title">Rotinas ativas deste pacote</string>
+    <string name="packs_keep_routines">Deixá-las ligadas</string>
+    <string name="packs_stop_routines">Desligar</string>
+    <string name="packs_installed">Instalado %1$s</string>
+    <string name="packs_rejected">Pacote não instalado (%1$s)</string>
+    <string name="packs_removed">Pacote removido</string>
+    <string name="backup_import">Importar</string>
+    <string name="backup_password">Senha</string>
+    <string name="backup_password_hint">Só para este arquivo. O Mika não a guarda.</string>
+    <string name="backup_preview">%1$d memórias, %2$d habilidades, %3$d pacotes, %4$d rotinas, %5$d permitidos, %6$d bloqueados. As rotinas entram desligadas e as listas serão substituídas.</string>
+    <string name="backup_import_confirm">Importar</string>
+    <string name="backup_saved">Exportado</string>
+    <string name="backup_imported">Importado. As rotinas estão desligadas.</string>
+    <string name="backup_failed">Não foi possível ler ou gravar esse arquivo</string>
+    <string name="backup_bad_password">Senha errada</string>
 </resources>

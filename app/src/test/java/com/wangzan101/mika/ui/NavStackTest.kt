@@ -8,17 +8,17 @@ import org.junit.Test
 class NavStackTest {
     @Test fun backReturnsToWhereYouCameFrom() {
         val nav = NavStack()
-        assertEquals(Route.Chat, nav.current)
+        assertEquals(Route.Today, nav.current)
         assertFalse(nav.canGoBack)
         assertFalse(nav.back())
 
-        // 侧栏进记忆,返回回到对话;从设置进记忆,返回回到设置
+        // 侧栏进记忆,返回回到今天;从设置进记忆,返回回到设置
         nav.push(Route.Memory)
         assertTrue(nav.back())
-        assertEquals(Route.Chat, nav.current)
+        assertEquals(Route.Today, nav.current)
         nav.push(Route.Settings)
         nav.push(Route.Memory)
-        assertEquals(listOf(Route.Chat, Route.Settings, Route.Memory), nav.stack)
+        assertEquals(listOf(Route.Today, Route.Settings, Route.Memory), nav.stack)
         nav.back()
         assertEquals(Route.Settings, nav.current)
     }
@@ -27,22 +27,23 @@ class NavStackTest {
         val nav = NavStack()
         nav.push(Route.PhoneSetup)
         nav.push(Route.PhoneSetup)
-        assertEquals(listOf(Route.Chat, Route.PhoneSetup), nav.stack)
+        assertEquals(listOf(Route.Today, Route.PhoneSetup), nav.stack)
     }
 
-    @Test fun resetAndChatGoBackToTheRoot() {
+    @Test fun chatSitsOnTodayAndGoHomeClearsTheStack() {
         val nav = NavStack(listOf(Route.Settings, Route.Memory))
-        assertEquals(listOf(Route.Chat, Route.Settings, Route.Memory), nav.stack)
+        assertEquals(listOf(Route.Today, Route.Settings, Route.Memory), nav.stack)
         nav.push(Route.Chat)
-        assertEquals(listOf(Route.Chat), nav.stack)
+        assertEquals(listOf(Route.Today, Route.Chat), nav.stack)
         nav.push(Route.Plans)
-        nav.reset()
-        assertEquals(listOf(Route.Chat), nav.stack)
+        nav.goHome()
+        assertEquals(listOf(Route.Today), nav.stack)
     }
 
-    @Test fun restoredStackAlwaysStartsWithChat() {
-        assertEquals(listOf(Route.Chat, Route.Run), NavStack(listOf(Route.Chat, Route.Chat, Route.Run)).stack)
-        assertEquals(listOf(Route.Chat), NavStack(emptyList()).stack)
+    @Test fun restoredStackAlwaysStartsWithToday() {
+        assertEquals(listOf(Route.Today, Route.Chat, Route.Run), NavStack(listOf(Route.Chat, Route.Run)).stack)
+        assertEquals(listOf(Route.Today), NavStack(emptyList()).stack)
+        assertEquals(listOf(Route.Today, Route.Chat), NavStack(listOf(Route.Today, Route.Chat)).stack)
     }
 
     @Test fun backFromAPageOpenedInTheDrawerReopensTheDrawer() {
@@ -57,20 +58,31 @@ class NavStackTest {
         assertFalse(nav.reopenDrawer)
     }
 
-    @Test fun pagesNotOpenedFromTheDrawerReturnToChatOnly() {
+    @Test fun pagesNotOpenedFromTheDrawerReturnToTodayOnly() {
         val nav = NavStack()
         nav.push(Route.Settings)
         nav.back()
+        assertEquals(Route.Today, nav.current)
         assertFalse(nav.reopenDrawer)
     }
 
     @Test fun openingAConversationDoesNotReopenTheDrawer() {
         val nav = NavStack()
         nav.pushFromDrawer(Route.Plans)
-        nav.reset()
+        nav.openChat()
+        assertEquals(listOf(Route.Today, Route.Chat), nav.stack)
         assertFalse(nav.reopenDrawer)
         nav.push(Route.Settings)
         nav.back()
         assertFalse(nav.reopenDrawer)
+    }
+
+    @Test fun backFromChatReturnsToToday() {
+        val nav = NavStack()
+        nav.openChat()
+        assertEquals(listOf(Route.Today, Route.Chat), nav.stack)
+        assertTrue(nav.back())
+        assertEquals(Route.Today, nav.current)
+        assertFalse(nav.canGoBack)
     }
 }

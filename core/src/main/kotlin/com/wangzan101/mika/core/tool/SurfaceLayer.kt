@@ -62,3 +62,24 @@ internal interface SurfaceLayer {
     /** 此刻那个地方的版本(网页的手机版、电脑版);没有或读不到为 null。 */
     suspend fun mode(): String?
 }
+
+/** 本任务没有接上任何屏时用：早晨安排这类只读来源不连虚拟屏或浏览器。 */
+internal object NoopSurfaceLayer : SurfaceLayer {
+    override val current: String get() = ""
+    override fun enter(id: String?) {}
+    override fun leave(succeeded: Boolean) {}
+    override fun surfaceOf(tool: AgentTool?): String? = null
+    override fun misaimed(tool: AgentTool, args: JsonObject, tools: ToolIndex): ToolExecution? = null
+    override fun skip() {}
+    override suspend fun around(tool: AgentTool, args: JsonObject, inlineScreen: Boolean, body: suspend (Boolean) -> ToolExecution): ToolExecution = body(false)
+    override var captureTargets: Boolean = false
+    override fun portRecord(tool: AgentTool?, args: JsonObject): JsonObject = JsonObject(emptyMap())
+    override fun setVisible(ids: Set<String>) {}
+    override suspend fun settle(timeoutMs: Long) {}
+    override suspend fun visibleText(): List<String> = emptyList()
+    override suspend fun waitUntil(until: Until, clock: () -> Long, interrupted: () -> Boolean) =
+        UntilOutcome(false, UntilOutcome.TIMEOUT, 0)
+    override suspend fun imageNow() = null
+    override suspend fun viewNow() = null
+    override suspend fun mode() = null
+}

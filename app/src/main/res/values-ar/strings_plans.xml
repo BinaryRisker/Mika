@@ -52,4 +52,25 @@
     <string name="plans_running_now">قيد التشغيل</string>
     <string name="trigger_deleted">حُذفت المهمة المجدولة</string>
     <string name="trigger_busy">ما زالت هذه المهمة قيد التشغيل</string>
+    <string name="plans_kind_manual">عبارة جاهزة</string>
+    <string name="plans_kind_share">مشاركة</string>
+    <string name="plans_share_text">نص</string>
+    <string name="plans_share_image">صور</string>
+    <string name="plans_new_phrase">عبارة جاهزة جديدة</string>
+    <string name="plans_new_share">روتين مشاركة جديد</string>
+    <string name="plans_name_label">الاسم</string>
+    <string name="plans_goal_label">المطلوب</string>
+    <string name="plans_share_accepts">يقبل</string>
+    <string name="plans_need_name">أدخل اسمًا</string>
+    <string name="plans_need_goal">أدخل ما ينبغي فعله</string>
+    <string name="plans_need_share_type">اختر النص أو الصور أو كليهما</string>
+    <string name="plans_create">إنشاء</string>
+    <string name="plans_enabled">مفعّل</string>
+    <string name="plans_new_watch">راقب هذه الصفحة</string>
+    <string name="plans_watch_url">رابط الصفحة</string>
+    <string name="plans_watch_expect">التغيير المنتظر</string>
+    <string name="plans_need_watch_url">أدخل رابط http(s)</string>
+    <string name="plans_need_watch_expect">أدخل التغيير المنتظر</string>
+    <string name="plans_edit_topics">الاهتمامات</string>
+    <string name="plans_topics_hint">اهتمام واحد في كل سطر</string>
 </resources>

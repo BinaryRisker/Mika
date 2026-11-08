@@ -19,10 +19,13 @@ import com.wangzan101.mika.core.tool.strArray
 import com.wangzan101.mika.core.trigger.ConditionNotify
 import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.nextCalendarAt
+import com.wangzan101.mika.core.trigger.rescheduledTo
+import com.wangzan101.mika.core.trigger.upcoming
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -75,17 +78,22 @@ internal object ScheduleTask : AgentTool {
                 } })
             })
             val id = a.str("triggerId") ?: return ToolExecution(okObj { put("changed", false); put("reason", "missing_trigger_id") })
+            if (op == "reschedule") {
+                val at = runCatching { Instant.parse(a.str("at") ?: error("missing time")).toEpochMilli() }.getOrNull()
+                    ?: return ToolExecution(okObj { put("changed", false); put("reason", "invalid_time") })
+                if (at <= System.currentTimeMillis()) return ToolExecution(okObj { put("changed", false); put("reason", "time_not_future") })
+                val changed = admin.reschedule(thread, id, at)
+                return ToolExecution(okObj {
+                    put("changed", changed)
+                    if (!changed) put("reason", if (admin.list(thread).any { it.id == id }) "already_ran" else "plan_not_found")
+                    else admin.list(thread).firstOrNull { it.id == id }?.rescheduledTo(at)?.let { putUpcoming(this, it) }
+                })
+            }
             val changed = when (op) {
                 "pause" -> admin.setEnabled(thread, id, false)
                 "resume" -> admin.setEnabled(thread, id, true)
                 "delete" -> admin.remove(thread, id)
                 "run_now" -> admin.runNow(thread, id)
-                "reschedule" -> {
-                    val at = runCatching { Instant.parse(a.str("at") ?: error("missing time")).toEpochMilli() }.getOrNull()
-                        ?: return ToolExecution(okObj { put("changed", false); put("reason", "invalid_time") })
-                    if (at <= System.currentTimeMillis()) return ToolExecution(okObj { put("changed", false); put("reason", "time_not_future") })
-                    admin.reschedule(thread, id, at)
-                }
                 else -> return ToolExecution(okObj { put("changed", false); put("reason", "invalid_op") })
             }
             return ToolExecution(okObj {
@@ -139,6 +147,7 @@ internal object ScheduleTask : AgentTool {
         val saved = create(trigger)
         return ToolExecution(okObj {
             put("scheduled", true); put("triggerId", trigger.id); put("atMs", at)
+            putUpcoming(this, trigger)
             if (!saved.onTime) {
                 put("exactAlarm", false)
                 put("userNotified", saved.userNotified)
@@ -148,5 +157,11 @@ internal object ScheduleTask : AgentTool {
                     "Tell the user plainly that scheduled tasks need this permission and that it can be turned on from Mika's scheduled tasks page.")
             }
         })
+    }
+
+    private fun putUpcoming(obj: kotlinx.serialization.json.JsonObjectBuilder, def: TriggerDefinition) {
+        val times = upcoming(def, def.nextAtMs, 3)
+        obj.put("upcomingMs", buildJsonArray { times.forEach { add(JsonPrimitive(it)) } })
+        obj.put("upcoming", buildJsonArray { times.forEach { add(JsonPrimitive(Instant.ofEpochMilli(it).toString())) } })
     }
 }

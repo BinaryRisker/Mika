@@ -170,4 +170,10 @@
     <string name="chat_placeholder_queue">다음 작업을 입력…</string>
     <string name="voice_placeholder_queue">다음 작업을 말하세요…</string>
     <string name="steer_received_paused">알겠어요 — 작업을 계속하면 적용됩니다</string>
+    <string name="share_pick_title">이 공유에 쓸 루틴</string>
+    <string name="share_pick_skip">지금은 안 함</string>
+    <string name="worth_prompt_title">무엇을 주시할까요?</string>
+    <string name="worth_prompt_hint">짧은 관심사</string>
+    <string name="worth_prompt_save">저장</string>
+    <string name="pending_ask_reply">방금 질문: %1$s\n내 답: %2$s</string>
 </resources>

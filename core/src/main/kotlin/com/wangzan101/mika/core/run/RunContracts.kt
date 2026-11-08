@@ -17,6 +17,11 @@ data class RunSpec(
     val provenance: RunProvenance = RunProvenance(),
     /** null 表示默认能力；子 Run 可给严格子集。 */
     val capabilities: Set<String>? = null,
+    /**
+     * 这一次运行发给模型的工具名。null 表示装配出来的全部；非空则只留这些名字
+     *（早晨安排：两个只读来源加 end_not_done）。能力仍按 [capabilities] 打开，避免把手机、网页、沙箱整组接上。
+     */
+    val toolNames: Set<String>? = null,
     /** 条件检查 Run 只允许读取；网页导航作为取得读取对象的准备动作例外。 */
     val readOnly: Boolean = false,
     val parent: RunId? = null,

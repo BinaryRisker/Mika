@@ -133,6 +133,23 @@ class ConfirmationGate {
     }
 
     /**
+     * 发送对象是否在标题栏里。允许名单和同意核对用同一条规则：不可编辑、至少两个字、只认屏幕顶部。
+     */
+    fun showsSendTarget(objectName: String, screen: ScreenSnapshot): Boolean =
+        targetShown(ConfirmationRequest(IrrevAction.send, objectName, "", null, screen.packageName.orEmpty()), screen)
+
+    /** 标题栏里最靠上的对象名；没有能当对象的字时为 null。留稿用它，不另做一套匹配。 */
+    fun sendObject(screen: ScreenSnapshot?): String? {
+        if (screen == null) return null
+        return screen.elements
+            .filter { e -> !e.editable && e.bounds.size == 4 && e.bounds[1] <= TITLE_BAND && norm(e.name).length >= 2 }
+            .minByOrNull { it.bounds[1] }
+            ?.name
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+    }
+
+    /**
      * 对象要在屏上不可编辑的文字里(输入框里打的不算),至少两个字;
      * 发送时只认屏幕顶部的标题栏(聊天对象的名字在那里),其余动作屏上任何地方都行。
      */

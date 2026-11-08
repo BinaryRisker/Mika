@@ -3,7 +3,7 @@
 技能和网站知识可以带脚本,放在各自目录的 `scripts/` 下。打包后这些目录出现在沙箱的 `/opt/mika/skills/` 下,
 由 `run_bundled_script` 在沙箱里运行。参数:
 
-- `source`:脚本所在的目录,也就是 `knowledge_read`、`skill_read` 结果里给出的 `scriptSource`,例如 `skills/documents`;
+- `source`:脚本所在的目录,也就是 `knowledge_read`、`skill_read` 结果里给出的 `scriptSource`,例如 `skills/documents`;扩展包是 `pack:<id>`;
 - `script`:目录里的脚本路径,例如 `scripts/extract_pdf.py`;
 - `args`:参数数组(最多 50 个),原样交给脚本,中间不经过 shell;
 - `timeoutSec`:时限,1–600 秒,默认 60。

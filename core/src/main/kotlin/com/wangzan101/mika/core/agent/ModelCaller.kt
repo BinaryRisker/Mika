@@ -11,6 +11,7 @@ import com.wangzan101.mika.core.model.Role
 import com.wangzan101.mika.core.model.StreamingChatModel
 import com.wangzan101.mika.core.model.ToolSpec
 import com.wangzan101.mika.core.model.Usage
+import com.wangzan101.mika.core.usage.SpendStopped
 import com.wangzan101.mika.core.record.Redactor
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.tool.ToolDispatcher
@@ -207,6 +208,9 @@ internal class ModelCaller(
                     lastOverhead[using] = overhead
                     r.usage?.let { compressor.calibrate(sent.estimate + overhead, it.inputTokens) }
                 }
+            } catch (e: SpendStopped) {
+                onText?.invoke("")
+                throw e
             } catch (e: ModelError.ContextTooLong) {
                 onText?.invoke("")
                 val (after, again) = CompactionPolicy.overflow(compaction, overflowRetried) {

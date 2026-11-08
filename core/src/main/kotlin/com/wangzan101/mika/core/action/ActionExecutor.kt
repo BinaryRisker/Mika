@@ -60,8 +60,10 @@ class ActionExecutor(
     autonomous: Boolean = false,
     /** 同一网站、App 里连着做对外动作(发送、提交)时两次之间的间隔(见 [OutwardPacing]);默认不等。 */
     private val pacing: OutwardPacing = OutwardPacing.Off,
+    /** 这次运行开工时的发送、删除和禁止名单。 */
+    private val rules: ActionRules = ActionRules.NONE,
 ) {
-    private val decision = ConfirmDecision(tools, confirmations, approvals, recorder = recorder, provenance = provenance, selfPackage = selfPackage, autonomous = autonomous)
+    private val decision = ConfirmDecision(tools, confirmations, approvals, recorder = recorder, provenance = provenance, selfPackage = selfPackage, autonomous = autonomous, rules = rules)
     private val pass = ActionPass()
 
     /** 配了确认关卡(付款能经用户同意后做)。 */
@@ -140,6 +142,9 @@ class ActionExecutor(
         }
         when (d) {
             is Decision.Required -> return blocked(call, args, origin, before, d.hit, null, followUp)
+            is Decision.OutboundAsk -> return outboundAsk(call, args, origin, before, d.hit, followUp)
+            is Decision.Draft -> return drafted(call, args, origin, before, d, followUp)
+            is Decision.PackageDenied -> return packageDenied(call, args, origin, before, d.hit, followUp)
             is Decision.Mismatch -> return blocked(call, args, origin, before, d.hit, d.reason, followUp)
             is Decision.Denied -> return approvalUnavailable(call, args, origin, before, d.hit, followUp)
             Decision.Unresolved -> return refuse("target_unresolved", origin, before)
@@ -340,6 +345,43 @@ class ActionExecutor(
             recorder.result(origin.step, call.name, tools.verb(call.name), answer.content, tools.portRecord(call.name, args), null, null, 0, origin.policy.source, call.id)
         }
         return ActionOutcome.Refused(code, answer.content, before, hit)
+    }
+
+    /** 人在场的发送或删除:不出钱的那张说明,仍是 confirmation_required,好走原来的确认卡。 */
+    private fun outboundAsk(
+        call: Part.ToolCall, args: JsonObject, origin: Origin, before: List<GuardVerdict>, hit: Irreversible, followUp: FollowUp,
+    ): ActionOutcome {
+        recorder.confirmation(hit, "required")
+        val content = Refusals.outboundAsk(hit, origin.policy.refusals, before)
+        if (origin.policy.recordsRefusal) {
+            followUp.refused(content)
+            recorder.result(origin.step, call.name, tools.verb(call.name), content, tools.portRecord(call.name, args), null, null, 0, origin.policy.source, call.id)
+        }
+        return ActionOutcome.Refused("confirmation_required", content, before, hit)
+    }
+
+    /** 人不在场:不执行,把对象、正文和「没有发出」或「没有删除」交给对话。 */
+    private fun drafted(
+        call: Part.ToolCall, args: JsonObject, origin: Origin, before: List<GuardVerdict>, draft: Decision.Draft, followUp: FollowUp,
+    ): ActionOutcome {
+        val content = Refusals.draft(draft.hit, draft.target, draft.body)
+        if (origin.policy.recordsRefusal) {
+            followUp.refused(content)
+            recorder.result(origin.step, call.name, tools.verb(call.name), content, tools.portRecord(call.name, args), null, null, 0, origin.policy.source, call.id)
+        }
+        return ActionOutcome.Refused(content["error"].toString().trim('"'), content, before, draft.hit)
+    }
+
+    /** 禁止名单:直接拒绝,不调用 [FollowUp.approve],所以不会出卡。 */
+    private fun packageDenied(
+        call: Part.ToolCall, args: JsonObject, origin: Origin, before: List<GuardVerdict>, hit: Irreversible, followUp: FollowUp,
+    ): ActionOutcome {
+        val content = Refusals.packageDenied(hit)
+        if (origin.policy.recordsRefusal) {
+            followUp.refused(content)
+            recorder.result(origin.step, call.name, tools.verb(call.name), content, tools.portRecord(call.name, args), null, null, 0, origin.policy.source, call.id)
+        }
+        return ActionOutcome.Refused("package_denied", content, before, hit)
     }
 
     private fun blocked(

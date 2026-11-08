@@ -7,6 +7,7 @@ import com.wangzan101.mika.core.observation.Trust
 import com.wangzan101.mika.core.observation.Untrusted
 import com.wangzan101.mika.core.prompt.Prompts
 import com.wangzan101.mika.core.search.HttpWebSearch
+import com.wangzan101.mika.core.search.SearchPrivacy
 import com.wangzan101.mika.core.search.WebSearchResult
 import com.wangzan101.mika.core.tool.AgentTool
 import com.wangzan101.mika.core.tool.Args
@@ -42,6 +43,17 @@ internal object WebSearchTool : AgentTool {
 
     override suspend fun execute(a: Args, ctx: ToolContext): ToolExecution {
         val query = a.str("query", max = 500)!!
+        val allow = ctx.config.searchAllowText
+        if (allow != null) {
+            val memories = ctx.config.memory?.items?.value.orEmpty().map { it.content }
+            SearchPrivacy.blocked(query, memories, allow)?.let { token ->
+                return ToolExecution(buildJsonObject {
+                    put("ok", false)
+                    put("error", "private_token")
+                    put("message", "The query contains a contact from memory that is not in the watch list: $token")
+                })
+            }
+        }
         val count = (a.int("count", 1, HttpWebSearch.MAX_COUNT) ?: 5).coerceIn(1, HttpWebSearch.MAX_COUNT)
         return when (val result = checkNotNull(ctx.config.webSearch).search(query, count)) {
             is WebSearchResult.Success -> {
@@ -55,7 +67,7 @@ internal object WebSearchTool : AgentTool {
                                 put("snippet", Untrusted.wrap(hit.snippet))
                             }
                         }))
-                        if (result.hits.isEmpty()) put("hint", "No results. Try a different query or use the browser tools to search.")
+                        if (result.hits.isEmpty()) put("hint", emptyHint(ctx))
                     },
                     observations = result.hits.map { hit ->
                         Observation(
@@ -71,9 +83,15 @@ internal object WebSearchTool : AgentTool {
                 put("ok", false)
                 put("error", result.code)
                 put("message", result.message)
-                put("fallback", "Use the browser tools to perform this search instead.")
+                if (allowBrowser(ctx)) put("fallback", "Use the browser tools to perform this search instead.")
                 result.retryAfterSeconds?.let { put("retryAfterSeconds", it) }
             })
         }
     }
+
+    private fun allowBrowser(ctx: ToolContext) = ctx.config.searchAllowText == null && ctx.tools["web_navigate"] != null
+
+    private fun emptyHint(ctx: ToolContext) =
+        if (allowBrowser(ctx)) "No results. Try a different query or use the browser tools to search."
+        else "No results. Try a different query."
 }

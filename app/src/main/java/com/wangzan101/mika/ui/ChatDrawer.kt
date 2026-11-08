@@ -197,7 +197,7 @@ fun readiness(check: Prerequisites.Check): Pair<String, Boolean> = when {
 private const val MAX_RECENT = 50
 
 /**
- * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;四个入口;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于并排。
+ * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;入口有今天、新对话、定时任务、记忆与技能、浏览器;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于并排。
  * 打开和关上由外面的抽屉管,这里只摆内容,点了什么交给回调。
  */
 @Composable
@@ -206,6 +206,7 @@ fun ChatDrawer(
     sections: DrawerSections,
     canSwitch: Boolean,
     onNew: () -> Unit,
+    onToday: () -> Unit = {},
     onPlans: () -> Unit,
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
@@ -243,6 +244,7 @@ fun ChatDrawer(
             }
         }
         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+            NavEntry(MikaIcons.Calendar, stringResource(R.string.drawer_today), onClick = onToday)
             NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
             NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onClick = onPlans)
             NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
@@ -490,6 +492,9 @@ fun ChatWithDrawer(
     conversationChanges: Flow<String> = emptyFlow(),
     /** 对话起好的标题;当前对话还没存进列表时(任务刚开始)也能叫出名字。 */
     conversationTitle: (String) -> String? = { null },
+    onToday: () -> Unit = {},
+    onOpenChat: () -> Unit = {},
+    onBackFromChat: (() -> Unit)? = null,
     onPlans: () -> Unit,
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
@@ -529,9 +534,14 @@ fun ChatWithDrawer(
     // 对话页里面板、画中画等自己的返回在内层,先于这里处理
     val activity = LocalContext.current.findActivity()
     val context = LocalContext.current
+    val chatBack = onBackFromChat
     BackHandler {
-        if (open) activity?.moveTaskToBack(true)
-        else scope.launch { if (reduceMotion) drawer.snapTo(DrawerValue.Open) else drawer.open() }
+        when {
+            open && chatBack != null -> close()
+            open -> activity?.moveTaskToBack(true)
+            chatBack != null -> chatBack()
+            else -> scope.launch { if (reduceMotion) drawer.snapTo(DrawerValue.Open) else drawer.open() }
+        }
     }
     var revision by remember { mutableIntStateOf(0) }
     LaunchedEffect(conversationChanges) { conversationChanges.collect { revision++ } }
@@ -589,7 +599,8 @@ fun ChatWithDrawer(
                 }
                 ChatDrawer(
                     check, sections, canSwitch,
-                    onNew = { close { vm.newConversation() } },
+                    onNew = { close { vm.newConversation(); onOpenChat() } },
+                    onToday = { leave(onToday) },
                     onPlans = { leave(onPlans) },
                     onMemory = { leave(onMemory) },
                     onSettings = { leave(onSettings) },
@@ -603,9 +614,9 @@ fun ChatWithDrawer(
                         close {
                             val id = item.id
                             when {
-                                id == null || id == ui.conversationId -> Unit
-                                item.running -> vm.switchTo(id)
-                                else -> vm.openConversation(id)
+                                id == null || id == ui.conversationId -> onOpenChat()
+                                item.running -> { vm.switchTo(id); onOpenChat() }
+                                else -> { vm.openConversation(id); onOpenChat() }
                             }
                         }
                     },

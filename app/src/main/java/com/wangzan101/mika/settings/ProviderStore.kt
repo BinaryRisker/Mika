@@ -33,10 +33,16 @@ import com.wangzan101.mika.core.model.PromptCaching
 import com.wangzan101.mika.core.model.ResponsesModel
 import com.wangzan101.mika.core.model.Role
 import com.wangzan101.mika.core.model.ToolSpec
+import com.wangzan101.mika.core.usage.SpendBudget
 import com.wangzan101.mika.core.usage.UsagePurpose
+import com.wangzan101.mika.core.usage.UsageQuery
 import com.wangzan101.mika.core.usage.UsageSink
 import com.wangzan101.mika.core.usage.UsageSource
+import com.wangzan101.mika.core.usage.capped
 import com.wangzan101.mika.core.usage.metered
+import com.wangzan101.mika.task.AssistantLimits
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -281,6 +287,7 @@ class ProviderStore(
     private val cipher: KeyCipher,
     private val usage: UsageSink = UsageSink { _, _ -> },
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val spend: SpendBudget = SpendBudget(),
     /** 发给模型服务的 User-Agent;App 给 `Mika/<版本>`。 */
     private val userAgent: String = "Mika",
     /** 列模型:接口类型、地址、Key、每个请求都带的头。 */
@@ -574,7 +581,7 @@ class ProviderStore(
         modelFactory(configured, apiKey(cfg.id), listed?.endpoint, ClientSetup(
             headers(p?.sessionHeader, session), reasoningEffort = _roles.value.reasoningEffort(role),
             thinkingTypes = listed?.thinkingTypes, readTimeoutSeconds = settings?.readTimeoutSeconds,
-        )).metered(source, usage)
+        )).metered(source, usage).capped(spend)
     }
 
     /**
@@ -1194,8 +1201,21 @@ class ProviderStore(
             else ProviderConfig.Kind.of(endpoint.protocol) to endpoint.adapterBaseUrl
 
         /** 产品里的那份(App 建):配置在 files/settings 下,Key 用 Android 密钥库加密,用量记到 [usage]。 */
-        fun create(context: Context, usage: UsageSink, userAgent: String): ProviderStore =
-            ProviderStore(File(context.applicationContext.filesDir, "settings"), KeystoreKeyCipher(), usage, userAgent = userAgent)
+        fun create(context: Context, usage: UsageSink, userAgent: String): ProviderStore {
+            val app = context.applicationContext
+            val ledger = usage as? com.wangzan101.mika.core.usage.UsageLedger
+            return ProviderStore(
+                File(app.filesDir, "settings"), KeystoreKeyCipher(), usage,
+                spend = SpendBudget(
+                    dailyCap = { AssistantLimits.dailyTokenCap(app) },
+                    dailyUsed = {
+                        if (ledger == null) 0L
+                        else UsageQuery.tokensOnLocalDay(ledger.snapshot(), Instant.now(), ZoneId.systemDefault())
+                    },
+                ),
+                userAgent = userAgent,
+            )
+        }
 
         /** App 内共用的那份(经 [Owner] 给出)。 */
         fun get(context: Context): ProviderStore = (context.applicationContext as? Owner)?.providers

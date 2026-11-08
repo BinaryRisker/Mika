@@ -6,6 +6,7 @@ import com.wangzan101.mika.core.guard.GuardVerdict
 import com.wangzan101.mika.core.guard.Severity
 import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.model.ToolSpec
+import com.wangzan101.mika.core.usage.SpendStopped
 import com.wangzan101.mika.core.prompt.Feedback
 import com.wangzan101.mika.core.tool.Outcome
 import com.wangzan101.mika.core.tool.Verb
@@ -41,6 +42,12 @@ class LoopPoliciesTest {
         assertEquals(Feedback["truncated_reply"], TurnPolicy.afterEmpty(already = false, truncated = true)!!.text)
         assertNull(TurnPolicy.afterEmpty(already = true, truncated = false))
         assertEquals(FailKind.Model, StopRules.noAnswer().kind)
+    }
+
+    @Test fun spendStopNamesSpendInTheRunResult() {
+        val end = StopRules.modelFailed(SpendStopped("已到达当天花费上限"))
+        assertTrue(end.reason, "花费" in end.reason)
+        assertEquals(FailKind.Model, end.kind)
     }
 
     @Test fun unconfirmedNudgeListsTheItems() {

@@ -4,6 +4,7 @@ import com.wangzan101.mika.core.net.ProxyFailure
 import com.wangzan101.mika.core.guard.GuardVerdict
 import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.tool.Outcome
+import com.wangzan101.mika.core.usage.SpendStopped
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
@@ -38,10 +39,12 @@ internal object StopRules {
     /** 退回过一次,模型的工具调用又以文字形式回来了(见 [LeakedToolCall]):不把原样的标记当回答交出。 */
     fun toolCallAsText() = TaskState.Failed("模型的工具调用没有被服务端识别,原样作为文字返回了,没能执行。", FailKind.Model)
 
-    /** 模型调用失败(重试过仍不行,或重试也没用)。 */
-    fun modelFailed(e: Throwable): TaskState.Failed =
-        if (e is ModelError) TaskState.Failed(userReason(e), FailKind.Model)
-        else TaskState.Failed("模型调用异常:${e.message ?: e::class.simpleName}", FailKind.Model)
+    /** 模型调用失败(重试过仍不行,或重试也没用)。花费上限停在下一次调用之前,结果写明停在花费上。 */
+    fun modelFailed(e: Throwable): TaskState.Failed = when (e) {
+        is SpendStopped -> TaskState.Failed("已停在花费上限。${e.message}", FailKind.Model)
+        is ModelError -> TaskState.Failed(userReason(e), FailKind.Model)
+        else -> TaskState.Failed("模型调用异常:${e.message ?: e::class.simpleName}", FailKind.Model)
+    }
 
     fun guard(v: GuardVerdict): TaskState.Failed {
         val treeBlind = v.evidence["treeBlind"] == JsonPrimitive(true)

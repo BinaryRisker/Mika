@@ -170,4 +170,10 @@
     <string name="chat_placeholder_queue">Tulis tugas berikutnya…</string>
     <string name="voice_placeholder_queue">Ucapkan tugas berikutnya…</string>
     <string name="steer_received_paused">Dimengerti — akan dipakai saat tugas dilanjutkan</string>
+    <string name="share_pick_title">Pilih rutinitas untuk berbagi ini</string>
+    <string name="share_pick_skip">Nanti saja</string>
+    <string name="worth_prompt_title">Pantau apa?</string>
+    <string name="worth_prompt_hint">Topik singkat</string>
+    <string name="worth_prompt_save">Simpan</string>
+    <string name="pending_ask_reply">Pertanyaan: %1$s\nJawaban saya: %2$s</string>
 </resources>

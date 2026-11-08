@@ -47,4 +47,25 @@
     <string name="plans_running_now">実行中</string>
     <string name="trigger_deleted">スケジュールされたタスクを削除しました</string>
     <string name="trigger_busy">このタスクはまだ実行中です</string>
+    <string name="plans_kind_manual">定型文</string>
+    <string name="plans_kind_share">共有</string>
+    <string name="plans_share_text">テキスト</string>
+    <string name="plans_share_image">画像</string>
+    <string name="plans_new_phrase">定型文を追加</string>
+    <string name="plans_new_share">共有ルーチンを追加</string>
+    <string name="plans_name_label">名前</string>
+    <string name="plans_goal_label">すること</string>
+    <string name="plans_share_accepts">受け付ける種類</string>
+    <string name="plans_need_name">名前を入力してください</string>
+    <string name="plans_need_goal">内容を入力してください</string>
+    <string name="plans_need_share_type">テキストか画像を選んでください</string>
+    <string name="plans_create">作成</string>
+    <string name="plans_enabled">有効</string>
+    <string name="plans_new_watch">このページを見る</string>
+    <string name="plans_watch_url">ページの URL</string>
+    <string name="plans_watch_expect">待ちたい変化</string>
+    <string name="plans_need_watch_url">http(s) の URL を入れてください</string>
+    <string name="plans_need_watch_expect">待ちたい変化を入れてください</string>
+    <string name="plans_edit_topics">関心</string>
+    <string name="plans_topics_hint">1 行に 1 つ</string>
 </resources>

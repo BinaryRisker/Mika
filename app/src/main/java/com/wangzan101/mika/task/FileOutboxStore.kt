@@ -34,7 +34,8 @@ class FileOutboxStore(private val file: File) : OutboxStore {
                 val text = o["text"]?.jsonPrimitive?.contentOrNull.orEmpty()
                 val delivery: Delivery = when (o.getValue("kind").jsonPrimitive.content) {
                     "ask" -> Delivery.Ask(id, threadId, o.getValue("askId").jsonPrimitive.content,
-                        Delivery.Ask.Kind.valueOf(o.getValue("askKind").jsonPrimitive.content), text)
+                        Delivery.Ask.Kind.valueOf(o.getValue("askKind").jsonPrimitive.content), text,
+                        o["options"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty())
                     "result" -> Delivery.Result(id, threadId, text,
                         o["restored"]?.jsonPrimitive?.content == "true", o["title"]?.jsonPrimitive?.contentOrNull ?: tr(R.string.notif_result_title))
                     "progress" -> Delivery.Progress(id, threadId, text)
@@ -64,6 +65,7 @@ class FileOutboxStore(private val file: File) : OutboxStore {
                 is Delivery.Ask -> {
                     put("kind", "ask"); put("askId", d.askId); put("askKind", d.kind.name)
                     put("text", d.text)
+                    put("options", JsonArray(d.options.map { kotlinx.serialization.json.JsonPrimitive(it) }))
                 }
                 is Delivery.Result -> {
                     put("kind", "result"); put("text", d.text); put("restored", d.restored); put("title", d.title)

@@ -125,8 +125,10 @@ class SystemPromptTest {
     @Test fun requestedIrreversibleStepsRunDirectly() {
         val p = flat()
         assertTrue("Complete requested actions directly" in p)
-        assertTrue("including actions that spend money, send content" in p)
+        assertTrue("Sending a message and deleting wait for one confirmation" in p)
         assertTrue("while buying includes payment" in p)
+        assertFalse("including actions that spend money, send content" in p)
+        assertFalse("sending, posting, deleting and changing settings included" in p)
         assertFalse("request_confirmation" in p)
     }
 

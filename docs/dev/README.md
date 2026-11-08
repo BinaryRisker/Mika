@@ -10,6 +10,9 @@
 | --- | --- |
 | [architecture.md](architecture.md) | 按代码现状写的整体结构，带类名和文件路径：主循环、工具、手机操作、浏览器、沙箱、电脑连接、知识与技能 |
 | [roadmap.md](roadmap.md) | 已完成、接下来、已知问题与暂缓 |
+| [project-analysis.md](project-analysis.md) | 项目定位、可能用途，以及 GitHub 上的同类实现和基于 Mika 的实现（2026-11-01 检索） |
+| [personal-assistant-research.md](personal-assistant-research.md) | Meta Muse、Today 与开源个人助理的做法，以及对 Mika 的取舍；同日补了 OpenMuse、dsh-go、OpenGrok、OpenMinis、Operit（2026-11-06） |
+| [personal-assistant-prd.md](personal-assistant-prd.md) | 个人助理用法层和扩展包的方案：规矩、常规、今天这一页、值得看、问句留存；实现在分支 personal-assistant |
 
 ## 写知识和技能
 

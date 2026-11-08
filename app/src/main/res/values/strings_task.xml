@@ -81,4 +81,5 @@
     <string name="screens_waiting">Waiting</string>
     <string name="screens_needs_you">Needs you</string>
     <string name="screens_zoom">Enlarge this screen</string>
+    <string name="routine_stopped_time">Stopped: this routine ran past its time limit</string>
 </resources>

@@ -10,6 +10,7 @@ import com.wangzan101.mika.core.prompt.Feedback
 import com.wangzan101.mika.core.prompt.PromptVersion
 import com.wangzan101.mika.core.tool.parseArgs
 import com.wangzan101.mika.core.action.ActionExecutor
+import com.wangzan101.mika.core.action.ActionRules
 import com.wangzan101.mika.core.action.ActionOutcome
 import com.wangzan101.mika.core.action.ActionRecorder
 import com.wangzan101.mika.core.action.OutwardPacing
@@ -50,6 +51,8 @@ import com.wangzan101.mika.core.run.RunProvenance
 import com.wangzan101.mika.core.run.RunOrigin
 import com.wangzan101.mika.core.run.Interaction
 import com.wangzan101.mika.core.run.LocalInteraction
+import com.wangzan101.mika.core.run.NoPendingAsks
+import com.wangzan101.mika.core.run.PendingAskStore
 import com.wangzan101.mika.core.run.Delivery
 import com.wangzan101.mika.core.tool.HandBack
 import com.wangzan101.mika.core.tool.HandBackOutcome
@@ -123,7 +126,7 @@ class AgentLoop(
     private val installedApps: suspend () -> List<Pair<String, String>> = { emptyList() },
     /** 最终回答交出前、按风险才请的独立核查(见 [AnswerReview]);为 null 时只做字面核对(产品路径必须给)。 */
     private val verifier: Verifier? = null,
-    /** 付款的确认关卡；自主执行路径传 null，也不向模型提供 request_confirmation。 */
+    /** 确认关卡。产品路径上询问和自主都有一份,发送和删除才能用原来的卡片;传 null 时没配关卡的来源不判不可逆。 */
     private val confirmations: ConfirmationGate? = ConfirmationGate(),
     /** 询问 / 自主(中途换成自主时从下一步起照它);默认询问。 */
     private val approvals: ApprovalSettings = ApprovalSettings.ASK,
@@ -157,6 +160,8 @@ class AgentLoop(
     /** 不带调用的回复收下当最终回答之前问一次(见 [BeforeAccept]);默认照收。步数用完后的最后一轮不问。 */
     private val beforeAccept: suspend (answer: String) -> BeforeAccept = { BeforeAccept.Accept },
     private val interaction: Interaction = LocalInteraction,
+    /** 还没答上的追问;人不在时送达后仍留着,进程被杀后从落盘读回来。 */
+    private val pendingAsks: PendingAskStore = NoPendingAsks,
     private val profileSnapshot: List<ProfileEntry> = emptyList(),
     private val autonomous: Boolean = false,
     /** 交互界面开启可见文字流；评测和后台调用保持原请求格式。 */
@@ -167,6 +172,8 @@ class AgentLoop(
     private val reviewFinalAnswer: Boolean = true,
     /** 同一网站、App 里连着做对外动作(发送、提交)时两次之间的间隔;默认不等。 */
     private val outwardPacing: OutwardPacing = OutwardPacing.Off,
+    /** 开工时的发送允许名单和禁止名单。默认空:发送和删除都要问。 */
+    private val rules: ActionRules = ActionRules.NONE,
     private val trace: RunTrace? = null,
 ) {
     init {
@@ -214,7 +221,7 @@ class AgentLoop(
     /** 用户本次说的话(memory_save、skill_save 的引文校验用);给了就收集,只在内存里、每个任务开始清空。 */
     private val utterances get() = tools.utterances
 
-    private val user = UserExchange(tools, confirmations, confirmTimeoutMs, inputTimeoutMs, { utterances }, { _state.value = it }, ::emit, ::now)
+    private val user = UserExchange(tools, confirmations, confirmTimeoutMs, inputTimeoutMs, { utterances }, { _state.value = it }, ::emit, ::now, pendingAsks)
     private val replay = routes?.let { RouteReplay(it, tools, ::awaitGate, { r -> gateState = r; _state.value = r }, ::emit, clock) }
 
     @Volatile private var job: Job? = null
@@ -395,7 +402,7 @@ class AgentLoop(
         val recorder = ActionRecorder(sink, clock, saveScreen = { id, png -> sink.media(id, png) })
         val executor = ActionExecutor(tools, guards, confirmations, gate = ::awaitGate, recorder = recorder, offScreen = tools.offScreenGuard(), approvals = approvals,
             provenance = provenance,
-            selfPackage = selfPackage, autonomous = autonomous, pacing = outwardPacing)
+            selfPackage = selfPackage, autonomous = autonomous, pacing = outwardPacing, rules = rules)
         var emptyNudged = false
         // 调过工具才有可核对的材料;交给用户付款和放行过对外动作一样,回答要另请核查
         var acted = false

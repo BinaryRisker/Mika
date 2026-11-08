@@ -195,4 +195,10 @@
     <string name="chat_placeholder_queue">اكتب المهمة التالية…</string>
     <string name="voice_placeholder_queue">تحدّث عن المهمة التالية…</string>
     <string name="steer_received_paused">تم الاستلام — سيُستخدم عند متابعة المهمة</string>
+    <string name="share_pick_title">اختر روتينًا لهذه المشاركة</string>
+    <string name="share_pick_skip">ليس الآن</string>
+    <string name="worth_prompt_title">ماذا نتابع؟</string>
+    <string name="worth_prompt_hint">اهتمام قصير</string>
+    <string name="worth_prompt_save">حفظ</string>
+    <string name="pending_ask_reply">السؤال: %1$s\nإجابتي: %2$s</string>
 </resources>

@@ -8,9 +8,12 @@ import com.wangzan101.mika.ui.components.KeyboardDismissArea
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 import com.wangzan101.mika.ui.components.MikaDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -28,6 +31,8 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.wangzan101.mika.core.trigger.CONDITION_COOLDOWN
 import com.wangzan101.mika.core.trigger.CONDITION_NOT_MET
 import com.wangzan101.mika.core.trigger.ConditionNotify
+import com.wangzan101.mika.core.trigger.RoutineKind
+import com.wangzan101.mika.core.trigger.ShareType
 import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.TriggerWindow
 import com.wangzan101.mika.core.trigger.TriggerWindowState
@@ -44,6 +49,7 @@ import com.wangzan101.mika.ui.components.GroupCard
 import com.wangzan101.mika.ui.components.GroupLabel
 import com.wangzan101.mika.ui.components.ListRow
 import com.wangzan101.mika.ui.components.MikaButton
+import com.wangzan101.mika.ui.components.RowActions
 import com.wangzan101.mika.ui.components.MikaSwitch
 import com.wangzan101.mika.ui.components.SegmentedControl
 import com.wangzan101.mika.ui.components.SheetAction
@@ -70,6 +76,9 @@ fun PlansScreen(context: Context, onBack: () -> Unit, onOpenConversation: (Strin
     var editing by remember { mutableStateOf<TriggerDefinition?>(null) }
     var deleting by remember { mutableStateOf<TriggerDefinition?>(null) }
     var acting by remember { mutableStateOf<TriggerDefinition?>(null) }
+    var creating by remember { mutableStateOf<RoutineKind?>(null) }
+    var creatingWatch by remember { mutableStateOf(false) }
+    var editingTopics by remember { mutableStateOf<TriggerDefinition?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var segment by rememberSaveable { mutableIntStateOf(0) }
     // 从系统设置回来时重读:刚开了权限,提示就该消失
@@ -114,19 +123,93 @@ fun PlansScreen(context: Context, onBack: () -> Unit, onOpenConversation: (Strin
                 }
             }
         }
+        RowActions(Modifier.padding(top = 16.dp)) {
+            MikaButton(tr(R.string.plans_new_phrase), { creating = RoutineKind.Manual }, kind = ButtonKind.Tonal, size = ButtonSize.Small)
+            MikaButton(tr(R.string.plans_new_share), { creating = RoutineKind.Share }, kind = ButtonKind.Tonal, size = ButtonSize.Small)
+            MikaButton(tr(R.string.plans_new_watch), { creatingWatch = true }, kind = ButtonKind.Tonal, size = ButtonSize.Small)
+        }
         FooterNote(tr(R.string.plans_footer))
     }
 
     acting?.let { plan ->
         ActionSheet(
-            plan.reminderText ?: plan.goal,
-            listOf(
+            plan.phraseName,
+            listOfNotNull(
                 SheetAction(tr(R.string.plans_open_chat)) { onOpenConversation(plan.threadId) },
                 SheetAction(tr(R.string.plans_run_now)) { act { TriggerRuntime.runNow(context, plan.id) } },
-                SheetAction(tr(R.string.plans_edit_time)) { editing = plan },
+                if (plan.armsAlarm) SheetAction(tr(R.string.plans_edit_time)) { editing = plan } else null,
+                if (com.wangzan101.mika.core.trigger.WorthReading.isThis(plan))
+                    SheetAction(tr(R.string.plans_edit_topics)) { editingTopics = plan } else null,
                 SheetAction(tr(R.string.confirm_delete), destructive = true) { deleting = plan },
             ),
             onDismiss = { acting = null },
+        )
+    }
+
+    creating?.let { kind ->
+        CreateRoutineDialog(kind, onDismiss = { creating = null }) { name, goal, types, enabled ->
+            act {
+                if (kind == RoutineKind.Manual) TriggerRuntime.addManual(context, name, goal, enabled)
+                else TriggerRuntime.addShare(context, name, goal, types, enabled)
+            }
+            creating = null
+        }
+    }
+
+    if (creatingWatch) {
+        var url by rememberSaveable { mutableStateOf("") }
+        var expect by rememberSaveable { mutableStateOf("") }
+        var formError by rememberSaveable { mutableStateOf<String?>(null) }
+        MikaDialog(
+            onDismissRequest = { creatingWatch = false },
+            title = { Text(tr(R.string.plans_new_watch)) },
+            text = {
+                KeyboardDismissArea {
+                    Column {
+                        OutlinedTextField(url, { url = it; formError = null }, Modifier.fillMaxWidth().keepsKeyboard(),
+                            label = { Text(tr(R.string.plans_watch_url)) }, singleLine = true)
+                        OutlinedTextField(expect, { expect = it; formError = null }, Modifier.fillMaxWidth().keepsKeyboard().padding(top = 8.dp),
+                            label = { Text(tr(R.string.plans_watch_expect)) })
+                        formError?.let { Text(it, Modifier.padding(top = 8.dp), style = MikaType.Caption, color = MikaTheme.colors.bad) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton({
+                    val u = url.trim(); val e = expect.trim()
+                    formError = when {
+                        !u.startsWith("http://") && !u.startsWith("https://") -> tr(R.string.plans_need_watch_url)
+                        e.isEmpty() -> tr(R.string.plans_need_watch_expect)
+                        else -> null
+                    }
+                    if (formError == null) {
+                        act { TriggerRuntime.addWatch(context, u, e) }
+                        creatingWatch = false
+                    }
+                }) { Text(tr(R.string.plans_create)) }
+            },
+            dismissButton = { TextButton({ creatingWatch = false }) { Text(tr(R.string.cancel)) } },
+        )
+    }
+
+    editingTopics?.let { plan ->
+        var text by rememberSaveable(plan.id) { mutableStateOf(plan.topics.joinToString("\n")) }
+        MikaDialog(
+            onDismissRequest = { editingTopics = null },
+            title = { Text(tr(R.string.plans_edit_topics)) },
+            text = {
+                KeyboardDismissArea {
+                    OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth().keepsKeyboard(),
+                        label = { Text(tr(R.string.plans_topics_hint)) }, minLines = 3)
+                }
+            },
+            confirmButton = {
+                TextButton({
+                    act { TriggerRuntime.setTopics(context, plan.id, text.split('\n')) }
+                    editingTopics = null
+                }) { Text(tr(R.string.plans_create)) }
+            },
+            dismissButton = { TextButton({ editingTopics = null }) { Text(tr(R.string.cancel)) } },
         )
     }
 
@@ -175,26 +258,37 @@ private fun PlanRow(plan: TriggerDefinition, last: TriggerWindow?, first: Boolea
         last?.state == TriggerWindowState.Unknown -> tr(R.string.plans_result_pending)
         else -> tr(R.string.chat_paused)
     }
-    val repeat = when {
-        plan.calendarTime != null -> {
-            val days = if (plan.calendarDays.isEmpty()) tr(R.string.plans_every_day) else plan.calendarDays.joinToString(tr(R.string.list_sep)) {
-                if (it in 1..7) java.time.DayOfWeek.of(it).getDisplayName(java.time.format.TextStyle.SHORT, uiLocale()) else "?"
+    val repeat = when (plan.kind) {
+        RoutineKind.Manual -> tr(R.string.plans_kind_manual)
+        RoutineKind.Share -> {
+            val types = plan.shareTypes.joinToString(tr(R.string.list_sep)) {
+                if (it == ShareType.Text) tr(R.string.plans_share_text) else tr(R.string.plans_share_image)
             }
-            "$days ${plan.calendarTime} (${plan.calendarZone})"
+            "${tr(R.string.plans_kind_share)} · $types"
         }
-        plan.intervalMs != null -> trPlural(R.plurals.plans_every_minutes, (plan.intervalMs!! / 60_000).toInt())
-        else -> tr(R.string.plans_once)
+        RoutineKind.Schedule -> when {
+            plan.calendarTime != null -> {
+                val days = if (plan.calendarDays.isEmpty()) tr(R.string.plans_every_day) else plan.calendarDays.joinToString(tr(R.string.list_sep)) {
+                    if (it in 1..7) java.time.DayOfWeek.of(it).getDisplayName(java.time.format.TextStyle.SHORT, uiLocale()) else "?"
+                }
+                "$days ${plan.calendarTime} (${plan.calendarZone})"
+            }
+            plan.intervalMs != null -> trPlural(R.plurals.plans_every_minutes, (plan.intervalMs!! / 60_000).toInt())
+            else -> tr(R.string.plans_once)
+        }
     }
-    val when_ = if (plan.enabled) tr(R.string.plans_next, repeat, formatPlanTime(plan.nextAtMs)) else "$repeat · $status"
+    val when_ = if (!plan.armsAlarm) "$repeat · $status"
+    else if (plan.enabled) tr(R.string.plans_next, repeat, formatPlanTime(plan.nextAtMs))
+    else "$repeat · $status"
     val subtitle = plan.conditionGoal?.let {
         tr(if (plan.notifyWhen == ConditionNotify.EachTimeMet) R.string.plans_condition_each else R.string.plans_condition, it, when_)
     } ?: when_
     val c = MikaTheme.colors
     val delivered = last?.state == TriggerWindowState.Delivered
-    // 一次性的任务做完后不能再打开;循环的和从没跑过的可以
-    val canToggle = plan.enabled || plan.intervalMs != null || plan.calendarTime != null || last == null
+    // 一次性的任务做完后不能再打开;循环的、手动、分享和从没跑过的可以
+    val canToggle = !plan.armsAlarm || plan.enabled || plan.intervalMs != null || plan.calendarTime != null || last == null
     ListRow(
-        null, plan.reminderText ?: plan.goal, subtitle, first = first,
+        null, plan.phraseName, subtitle, first = first,
         detail = last?.let { lastResult(plan, it) } ?: tr(R.string.plans_never_run),
         detailColor = if (delivered) c.ok else c.ink3,
         onClick = onClick,
@@ -220,4 +314,71 @@ private fun windowLabel(w: TriggerWindow): String = when (w.state) {
     TriggerWindowState.Failed -> tr(R.string.plans_check_failed)
     TriggerWindowState.Unknown -> tr(R.string.plans_result_pending)
     TriggerWindowState.Claimed, TriggerWindowState.Dispatched, TriggerWindowState.ActionDispatched -> tr(R.string.plans_running_now)
+}
+
+@Composable
+private fun CreateRoutineDialog(
+    kind: RoutineKind,
+    onDismiss: () -> Unit,
+    onCreate: (name: String, goal: String, types: List<ShareType>, enabled: Boolean) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var goal by rememberSaveable { mutableStateOf("") }
+    var acceptText by rememberSaveable { mutableStateOf(true) }
+    var acceptImage by rememberSaveable { mutableStateOf(true) }
+    var enabled by rememberSaveable { mutableStateOf(true) }
+    var formError by rememberSaveable { mutableStateOf<String?>(null) }
+    val share = kind == RoutineKind.Share
+    MikaDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr(if (share) R.string.plans_new_share else R.string.plans_new_phrase)) },
+        text = {
+            KeyboardDismissArea {
+                Column {
+                    OutlinedTextField(name, { name = it; formError = null }, Modifier.fillMaxWidth().keepsKeyboard(),
+                        label = { Text(tr(R.string.plans_name_label)) }, singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(goal, { goal = it; formError = null }, Modifier.fillMaxWidth().keepsKeyboard(),
+                        label = { Text(tr(R.string.plans_goal_label)) }, minLines = 2)
+                    if (share) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(tr(R.string.plans_share_accepts), style = MikaType.Caption, color = MikaTheme.colors.ink3)
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(tr(R.string.plans_share_text), Modifier.weight(1f), style = MikaType.Body)
+                            MikaSwitch(acceptText, { acceptText = it; formError = null })
+                        }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(tr(R.string.plans_share_image), Modifier.weight(1f), style = MikaType.Body)
+                            MikaSwitch(acceptImage, { acceptImage = it; formError = null })
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(tr(R.string.plans_enabled), Modifier.weight(1f), style = MikaType.Body)
+                        MikaSwitch(enabled, { enabled = it })
+                    }
+                    formError?.let {
+                        Text(it, Modifier.padding(top = 8.dp), style = MikaType.Caption, color = MikaTheme.colors.bad)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val n = name.trim()
+                val g = goal.trim()
+                val types = buildList {
+                    if (acceptText) add(ShareType.Text)
+                    if (acceptImage) add(ShareType.Image)
+                }
+                formError = when {
+                    n.isEmpty() -> tr(R.string.plans_need_name)
+                    g.isEmpty() -> tr(R.string.plans_need_goal)
+                    share && types.isEmpty() -> tr(R.string.plans_need_share_type)
+                    else -> null
+                }
+                if (formError == null) onCreate(n, g, types, enabled)
+            }) { Text(tr(R.string.plans_create)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr(R.string.cancel)) } },
+    )
 }

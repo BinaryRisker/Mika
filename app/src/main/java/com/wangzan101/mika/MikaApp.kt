@@ -188,6 +188,13 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         )
     }
 
+    /** 还没答上的 `ask_user`:人不在时送达后仍留着,进程被杀后从落盘读回来。 */
+    val pendingAsks: com.wangzan101.mika.task.PendingAsks by lazy {
+        com.wangzan101.mika.task.PendingAsks(
+            com.wangzan101.mika.task.FilePendingAskStore(java.io.File(filesDir, "pending-asks-v1.json")),
+        )
+    }
+
     /** 没结束的运行的善后(标中断、补送、告知):进程里只做一次,App 启动和任务服务启动都调它。 */
     val runRecovery: RunRecovery by lazy {
         val app = this
@@ -235,6 +242,7 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
                 // 工作区里有附件、用户发来的屏幕、任务写的文件;沙箱里的命令碰得到这里,和命令、导入、重置互斥着删
                 SandboxDirs(app).deleteWorkspace(id)
             },
+            dropPendingAsk = { id -> TaskService.cancelPendingAskNotify(app, id); pendingAsks.remove(id) },
         )
     }
 
@@ -301,7 +309,10 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
                 override fun handBackIn(conversationId: String) { key(conversationId)?.let { TaskService.handBack(app, runKey = it) } }
                 override fun finishedMyselfIn(conversationId: String) { key(conversationId)?.let { TaskService.finishedMyself(app, runKey = it) } }
                 override fun skipIn(conversationId: String) { key(conversationId)?.let { TaskService.skip(app, runKey = it) } }
-                override fun answerIn(conversationId: String, text: String) { key(conversationId)?.let { TaskService.answer(app, text, it) } }
+                override fun answerIn(conversationId: String, text: String) {
+                    val k = key(conversationId)
+                    if (k != null) TaskService.answer(app, text, k) else TaskService.answer(app, text, conversationId = conversationId)
+                }
                 override fun approveIn(conversationId: String, key: Int) { key(conversationId)?.let { TaskService.approve(app, key, it) } }
                 override fun declineIn(conversationId: String, key: Int) { key(conversationId)?.let { TaskService.decline(app, key, it) } }
                 override fun unmuteIn(conversationId: String) { taskState.run(conversationId)?.unmute() }
@@ -346,6 +357,8 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
             // 标题后面加当前界面语言的「分支」后缀;源标题太长时先截短,后缀留着
             branchTitle = { base -> ChatCopy.branchTitle(base, tr(R.string.chat_branch_title_suffix)) },
             sharedDrafts = sharedDrafts,
+            pendingAsks = pendingAsks.changes,
+            takePendingAsk = { id -> TaskService.cancelPendingAskNotify(app, id); pendingAsks.remove(id) },
             sharedDraftUri = { name ->
                 sharedDrafts.imageFile(name)?.let { file ->
                     androidx.core.content.FileProvider.getUriForFile(app, com.wangzan101.mika.chat.AttachFilesProvider.authority(app.packageName), file).toString()
@@ -385,6 +398,7 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         scope.launch { taskRecovery.recover() }
         // 上次进程被杀时没结束的运行:现在就标为中断并告知,不等任务服务起来
         if (!quit) runRecovery.recover().let { if (it.isNotEmpty()) Log.w("MikaTask", "${it.size} runs interrupted by process restart") }
+        if (!quit) runCatching { TaskService.restorePendingAsks(this) }
         // 用户已绑定并打开微信渠道时恢复监听；完全退出期间由各运行入口统一拒绝补起
         wechat.ensureRunning()
         // 先对一下设备时区;退出期间不排闹钟,重新打开时再补排

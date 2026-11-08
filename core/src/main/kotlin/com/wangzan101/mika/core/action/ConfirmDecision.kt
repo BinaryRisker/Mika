@@ -32,6 +32,15 @@ sealed interface Decision {
     data class Mismatch(val hit: Irreversible, val reason: String) : Decision
     /** 要花钱,本次运行却问不到手机旁的用户,直接拒绝。 */
     data class Denied(val hit: Irreversible) : Decision
+    /** 人在场的发送或删除还没有同意。付款不走这里。 */
+    data class OutboundAsk(val hit: Irreversible) : Decision
+    /**
+     * 人不在场的发送或删除:不执行。发送时 [target] 是标题栏对象、[body] 是正文；
+     * 删除时 [target] 是要删的那一下，[body] 为空。
+     */
+    data class Draft(val hit: Irreversible, val target: String, val body: String) : Decision
+    /** 禁止名单命中:直接拒绝,不出卡。 */
+    data class PackageDenied(val hit: Irreversible) : Decision
     /** 作用在 Mika 自己身上,不做。 */
     data object OwnApp : Decision
 }
@@ -47,10 +56,12 @@ class ConfirmDecision(
     private val risks: RiskJudge = ClassifiedRisk,
     private val recorder: ActionRecorder? = null,
     private val provenance: RunProvenance = RunProvenance(),
-    /** 开工就是自主执行(没有确认关卡):付款也不问,界面目标猜测也不阻断动作;中途换成自主看 [ApprovalSettings.autonomous]。 */
+    /** 开工就是自主执行:付款也不问,界面目标猜测也不阻断动作;中途换成自主看 [ApprovalSettings.autonomous]。发送和删除仍问。 */
     private val autonomous: Boolean = false,
     /** Mika 自己的包名:作用在它上面的写操作一律不做(不自己给自己点同意、改设置)。 */
     private val selfPackage: String? = null,
+    /** 这次运行开工时的发送、删除和禁止名单。默认空名单:发送和删除都要问。 */
+    private val rules: ActionRules = ActionRules.NONE,
 ) {
     /**
      * 刚判过的这一步是对外动作(发送、提交:判定命中、放行后要做的)时它所在的网站或 App(见 [OutwardPacing.siteOf]),
@@ -59,6 +70,9 @@ class ConfirmDecision(
     var outwardSite: String? = null
         private set
 
+    /** 标题栏核对不碰真正的同意关卡。 */
+    private val titles = ConfirmationGate()
+
     /** 判定放在锁屏等待之后:按此刻重新读的一屏判。 */
     suspend fun judge(tool: String, args: JsonObject, origin: Origin): Decision {
         outwardSite = null
@@ -66,7 +80,10 @@ class ConfirmDecision(
             val target = tools.gateTarget(tool)
             if (IrreversibleDetector.needsCheck(target, args)) {
                 val aim = tools.interfaces.actionTarget(tools.declared(tool), args)
-                outwardSite = outward(IrreversibleDetector.classify(target, aim.args, aim.aimed), aim.aimed)
+                val hit = IrreversibleDetector.classify(target, aim.args, aim.aimed)
+                val risk = risks.assess(tools.verb(tool), hit) { aim.aimed }
+                outwardSite = outward(hit, aim.aimed)
+                hold(tool, origin, hit, risk, aim.aimed, typingOf(tool, args), aim.seen)?.let { return it }
             }
             return Decision.Clear
         }
@@ -92,6 +109,7 @@ class ConfirmDecision(
         val hit = IrreversibleDetector.classify(target, checked, snap, fresh)
         val risk = risks.assess(verb, hit) { fresh ?: snap }
         outwardSite = outward(hit, fresh ?: snap)
+        hold(tool, origin, hit, risk, fresh ?: snap, typing, seen)?.let { return it }
         approve(tool, checked, origin, hit, risk, fresh ?: snap, typing, seen)?.let { return it }
         if (hit != null || !IrreversibleDetector.unresolved(target, checked, snap, fresh)) return Decision.Clear
         return if (policy.refuseUnresolved) Decision.Unresolved else Decision.Traced(unresolvedDetail(args, aim.readAgeMs, fresh != null))
@@ -107,6 +125,60 @@ class ConfirmDecision(
         if (!tools.writesScreen(tool)) return false
         if (screen?.packageName == self) return true
         return listOf("package", "uri").any { k -> (args[k] as? JsonPrimitive)?.contentOrNull?.let { self in it } == true }
+    }
+
+    private fun typingOf(tool: String, args: JsonObject) =
+        if (tools.verb(tool) == Verb.TypeText) (args["text"] as? JsonPrimitive)?.contentOrNull else null
+
+    /**
+     * 发送和删除的规矩。付款、下单、带应付金额的删除或提交返回 null,继续走原来的花钱路径。
+     * 没有应付金额的提交也返回 null。人不在场时先留草稿,允许名单和自主都不放行。
+     * 人在场且允许名单对上标题栏的发送在这里放行,并记一笔 allowed。
+     */
+    private fun hold(
+        tool: String, origin: Origin, hit: Irreversible?, risk: Risk, screen: ScreenSnapshot?, typing: String?, seen: String?,
+    ): Decision? {
+        val action = hit?.action ?: return null
+        val paying = risk.payment || action == IrrevAction.pay || action == IrrevAction.order
+        if (paying) {
+            if (rules.denies(screen?.packageName, ActionRules.Kind.Payment)) return packageDenied(tool, origin, hit, risk)
+            return null
+        }
+        if (action == IrrevAction.submit) return null
+        if (action != IrrevAction.send && action != IrrevAction.delete) return null
+        val kind = if (action == IrrevAction.send) ActionRules.Kind.Send else ActionRules.Kind.Delete
+        if (rules.denies(screen?.packageName, kind)) return packageDenied(tool, origin, hit, risk)
+        if (!ActionRules.personPresent(provenance)) {
+            val target = if (action == IrrevAction.send) titles.sendObject(screen).orEmpty() else hit.matched
+            val body = if (action == IrrevAction.send) ActionRules.messageBody(screen, typing) else ""
+            recorder?.approval(origin, tool, hit, risk, "drafted")
+            return Decision.Draft(hit, target, body)
+        }
+        if (action == IrrevAction.send && screen != null && rules.allowsSend(screen, titles)) {
+            recorder?.approval(origin, tool, hit, risk, "allowed")
+            return Decision.Clear
+        }
+        val gate = confirmations?.takeIf { origin.policy.usesGrant }
+        if (gate != null) {
+            when (val permit = gate.permits(hit, screen, origin.step, typing, listOfNotNull(seen))) {
+                Permit.Allowed -> {
+                    recorder?.approval(origin, tool, hit, risk, "allowed")
+                    return Decision.Clear
+                }
+                is Permit.Mismatch -> {
+                    recorder?.approval(origin, tool, hit, risk, "mismatch")
+                    return Decision.Mismatch(hit, permit.reason)
+                }
+                Permit.NoGrant -> Unit
+            }
+        }
+        recorder?.approval(origin, tool, hit, risk, "required")
+        return Decision.OutboundAsk(hit)
+    }
+
+    private fun packageDenied(tool: String, origin: Origin, hit: Irreversible, risk: Risk): Decision {
+        recorder?.approval(origin, tool, hit, risk, "denied")
+        return Decision.PackageDenied(hit)
     }
 
     /** 按来源判;要花钱时核对用户的一次性同意。放行为 null。 */

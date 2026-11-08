@@ -16,6 +16,11 @@ import com.wangzan101.mika.core.cap.web.WEB
 import com.wangzan101.mika.core.cap.web.WebCapability
 import com.wangzan101.mika.core.cap.web.WebGroup
 import com.wangzan101.mika.core.cap.web.WebPort
+import com.wangzan101.mika.core.cap.sources.SOURCES
+import com.wangzan101.mika.core.cap.sources.SourcesCapability
+import com.wangzan101.mika.core.cap.sources.SourcesGroup
+import com.wangzan101.mika.core.cap.sources.CalendarSource
+import com.wangzan101.mika.core.cap.sources.NextAlarmSource
 import com.wangzan101.mika.core.uistate.IdleScroll
 import com.wangzan101.mika.core.cap.web.PagePacing
 import com.wangzan101.mika.core.uistate.PlacePace
@@ -122,9 +127,15 @@ fun toolDispatcher(
     root: RootPort? = null,
     /** 用户配置并启用的通用网页搜索;为空时保持原有浏览器搜索路径。 */
     webSearch: com.wangzan101.mika.core.search.WebSearch? = null,
+    /** 「值得看」关注原文；非空时搜索不得带出记忆里未出现在关注里的邮箱电话。 */
+    searchAllowText: String? = null,
+    /** 本机日历（今天和明天）；为空时不提供 read_calendar。 */
+    calendar: CalendarSource? = null,
+    /** 系统报告的下一个闹钟；为空时不提供 read_next_alarm。 */
+    nextAlarm: NextAlarmSource? = null,
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
-        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, personalSkills, selfConfig, runRecords, webSearch)
+        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, personalSkills, selfConfig, runRecords, webSearch, searchAllowText)
     val providers: List<CapabilityProvider> = listOf(
         object : CapabilityProvider {
             override val id = PHONE
@@ -138,6 +149,10 @@ fun toolDispatcher(
             override val id = SANDBOX
             override fun open(spec: RunSpec) = SandboxCapability(sandbox, workspace, visionEnabled,
                 onSandboxCommand, onSandboxProgress, onSandboxPreparing, onSandboxScript)
+        },
+        object : CapabilityProvider {
+            override val id = SOURCES
+            override fun open(spec: RunSpec) = SourcesCapability(calendar, nextAlarm)
         },
     ) + listOfNotNull(root?.let { port ->
         object : CapabilityProvider {
@@ -190,7 +205,7 @@ fun recordedTools(): ToolIndex = legacyNames().let { legacy -> ToolIndex(allTool
 
 /** Mika 所有可能提供的工具,按发给模型的顺序。 */
 internal fun allTools(): List<AgentTool> =
-    GeneralGroup.tools + PhoneCapability.tools() + WebGroup.tools + SandboxGroup.tools + RootGroup.tools
+    GeneralGroup.tools + PhoneCapability.tools() + WebGroup.tools + SandboxGroup.tools + RootGroup.tools + SourcesGroup.tools
 
 /** Mika 所有可能提供的工具的声明。 */
 fun knownTools(): ToolIndex = ToolIndex(allTools())

@@ -47,4 +47,25 @@
     <string name="plans_running_now">Berjalan</string>
     <string name="trigger_deleted">Tugas terjadwal sudah dihapus</string>
     <string name="trigger_busy">Tugas ini masih berjalan</string>
+    <string name="plans_kind_manual">Ungkapan</string>
+    <string name="plans_kind_share">Bagikan</string>
+    <string name="plans_share_text">Teks</string>
+    <string name="plans_share_image">Gambar</string>
+    <string name="plans_new_phrase">Ungkapan baru</string>
+    <string name="plans_new_share">Rutinitas berbagi baru</string>
+    <string name="plans_name_label">Nama</string>
+    <string name="plans_goal_label">Yang harus dilakukan</string>
+    <string name="plans_share_accepts">Menerima</string>
+    <string name="plans_need_name">Masukkan nama</string>
+    <string name="plans_need_goal">Masukkan yang harus dilakukan</string>
+    <string name="plans_need_share_type">Pilih teks, gambar, atau keduanya</string>
+    <string name="plans_create">Buat</string>
+    <string name="plans_enabled">Aktif</string>
+    <string name="plans_new_watch">Pantau halaman ini</string>
+    <string name="plans_watch_url">URL halaman</string>
+    <string name="plans_watch_expect">Perubahan yang ditunggu</string>
+    <string name="plans_need_watch_url">Masukkan URL http(s)</string>
+    <string name="plans_need_watch_expect">Masukkan perubahan yang ditunggu</string>
+    <string name="plans_edit_topics">Topik</string>
+    <string name="plans_topics_hint">Satu topik per baris</string>
 </resources>

@@ -19,6 +19,9 @@ import com.wangzan101.mika.core.run.Delivery
 import com.wangzan101.mika.core.run.DeliveryState
 import com.wangzan101.mika.core.run.Interaction
 import com.wangzan101.mika.core.run.LocalInteraction
+import com.wangzan101.mika.core.run.NoPendingAsks
+import com.wangzan101.mika.core.run.PendingAsk
+import com.wangzan101.mika.core.run.PendingAskStore
 import com.wangzan101.mika.core.run.RunOrigin
 import com.wangzan101.mika.core.run.RunProvenance
 import kotlinx.coroutines.CompletableDeferred
@@ -42,6 +45,7 @@ internal class UserExchange(
     private val setState: (TaskState) -> Unit,
     private val emit: (RunEvent) -> Unit,
     private val now: () -> Long,
+    private val pendingAsks: PendingAskStore = NoPendingAsks,
 ) {
     private var threadId = "local"
     private var provenance = RunProvenance()
@@ -61,8 +65,8 @@ internal class UserExchange(
         activeAsk = null
     }
 
-    private fun ask(kind: Delivery.Ask.Kind, text: String): Delivery.Ask =
-        Delivery.Ask(UUID.randomUUID().toString(), threadId, UUID.randomUUID().toString(), kind, text)
+    private fun ask(kind: Delivery.Ask.Kind, text: String, options: List<String> = emptyList()): Delivery.Ask =
+        Delivery.Ask(UUID.randomUUID().toString(), threadId, UUID.randomUUID().toString(), kind, text, options)
 
     private suspend fun announce(ask: Delivery.Ask): DeliveryState {
         activeAsk = ask
@@ -105,9 +109,15 @@ internal class UserExchange(
 
     /** 等用户回答追问,最多 [inputTimeoutMs];超时返回 null。用户的回答可能是验证码一类,不记。 */
     suspend fun awaitAnswer(prompt: String, options: List<String>?): String? {
-        if (provenance.attendance == Attendance.Unattended) return null
+        val ask = ask(Delivery.Ask.Kind.Input, prompt, options.orEmpty())
+        pendingAsks.put(PendingAsk(ask.askId, threadId, prompt, options.orEmpty(), now()))
+        if (provenance.attendance == Attendance.Unattended) {
+            emit(RunEvent.State(now(), "waiting_input", detail(prompt)))
+            announce(ask)
+            emit(RunEvent.State(now(), "no_answer", detail(prompt)))
+            return null
+        }
         val pending = CompletableDeferred<String>().also { inputReply = it }
-        val ask = ask(Delivery.Ask.Kind.Input, prompt)
         activeAsk = ask
         setState(TaskState.WaitingInput(prompt, options))
         emit(RunEvent.State(now(), "waiting_input", detail(prompt)))
@@ -116,6 +126,7 @@ internal class UserExchange(
             else withTimeoutOrNull(inputTimeoutMs) { pending.await() }
         } finally {
             inputReply = null
+            pendingAsks.remove(threadId)
             resolve(ask)
         }.also { if (it == null) emit(RunEvent.State(now(), "no_answer", detail(prompt))) else utterances()?.add(UserWords.said(com.wangzan101.mika.core.userscreen.UserScreenMessage.parse(it).words, tools)) }?.let { answerText(it) }
     }

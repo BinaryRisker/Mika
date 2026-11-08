@@ -45,7 +45,10 @@ class WechatChannel(
         if (peer.channelId != id || !isAlive(peer)) return SendOutcome.Failed
         val account = store.account() ?: return SendOutcome.Failed
         val text = when (delivery) {
-            is Delivery.Ask -> delivery.text
+            is Delivery.Ask -> buildString {
+                append(delivery.text)
+                delivery.options.forEach { append('\n').append(it) }
+            }
             is Delivery.Result -> delivery.text
             is Delivery.Notice -> delivery.text
             is Delivery.Progress -> delivery.text

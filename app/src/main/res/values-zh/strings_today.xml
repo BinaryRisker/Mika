@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_title">今天</string>
+    <string name="drawer_today">今天</string>
+    <string name="today_next_event">下一个日程</string>
+    <string name="today_next_alarm">下一个闹钟</string>
+    <string name="today_waiting">等你处理</string>
+    <string name="today_routines">今天的常规</string>
+    <string name="today_empty">空</string>
+    <string name="today_status_upcoming">还没到</string>
+    <string name="today_status_unchanged">无变化</string>
+    <string name="today_status_done">做成</string>
+    <string name="today_status_failed">没做成</string>
+    <string name="today_status_quiet">推迟到安静时段结束</string>
+    <string name="today_status_disabled">已关闭</string>
+    <string name="today_status_recorded">已记下</string>
+    <string name="today_folded">已折叠 %1$d 次</string>
+    <string name="today_no_alarm">没有下一个闹钟</string>
+    <string name="today_no_event">没有接下来的日程</string>
+    <string name="today_search">搜目标、结局、文件名</string>
+    <string name="today_search_empty">没有找到</string>
+    <string name="today_unwatched">因为没人看，先停了</string>
+</resources>

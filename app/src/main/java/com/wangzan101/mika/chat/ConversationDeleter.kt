@@ -32,6 +32,7 @@ class ConversationDeleter(
     /** 读写定时任务和对话记录在哪儿做。 */
     private val io: CoroutineContext = Dispatchers.IO,
     private val forgetRemoteTasks: (String) -> Unit = {},
+    private val dropPendingAsk: (String) -> Unit = {},
 ) {
     fun impact(conversationId: String): DeleteImpact =
         DeleteImpact(conversationId in active.value, runCatching { schedulesOf(conversationId).size }.getOrDefault(0))
@@ -48,6 +49,7 @@ class ConversationDeleter(
         try { deleteWorkspace(conversationId) } catch (e: CancellationException) { throw e } catch (e: Exception) { }
         withContext(io) {
             forgetRemoteTasks(conversationId)
+            dropPendingAsk(conversationId)
             store.delete(conversationId)
         }
     }

@@ -17,13 +17,29 @@ import com.wangzan101.mika.R
 import com.wangzan101.mika.chat.ConversationStore
 import com.wangzan101.mika.core.agent.Turn
 import com.wangzan101.mika.ui.MainActivity
+import com.wangzan101.mika.core.agent.TaskState
+import com.wangzan101.mika.cap.sources.AndroidAlarmSource
+import com.wangzan101.mika.cap.sources.AndroidCalendarSource
+import com.wangzan101.mika.core.cap.sources.MorningNotify
+import com.wangzan101.mika.core.cap.sources.MorningSnapshot
+import com.wangzan101.mika.core.trigger.FailureFold
+import com.wangzan101.mika.core.trigger.MorningRoutine
+import com.wangzan101.mika.core.trigger.WatchPage
+import com.wangzan101.mika.core.trigger.WorthNotify
+import com.wangzan101.mika.core.trigger.WorthReading
+import com.wangzan101.mika.core.trigger.PlanResult
+import com.wangzan101.mika.core.trigger.RoutineStatus
 import com.wangzan101.mika.core.trigger.Scheduled
 import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.TriggerEngine
 import com.wangzan101.mika.core.trigger.ConditionOutcome
 import com.wangzan101.mika.core.trigger.TriggerSnapshot
+import com.wangzan101.mika.core.trigger.RoutineKind
+import com.wangzan101.mika.core.trigger.ShareMatch
+import com.wangzan101.mika.core.trigger.ShareType
 import com.wangzan101.mika.core.trigger.TriggerWindowState
 import com.wangzan101.mika.core.trigger.rescheduledTo
+import java.util.UUID
 import com.wangzan101.mika.core.trigger.afterCheck
 import com.wangzan101.mika.core.trigger.conditionCheckGoal
 import com.wangzan101.mika.core.trigger.revertFire
@@ -70,6 +86,9 @@ object TriggerRuntime {
     }
 
     @Synchronized fun rearm(context: Context) {
+        seedMorning(context)
+        seedWorthReading(context)
+        com.wangzan101.mika.pack.PackStore.seedExample(context)
         if (FeatureFlags.get(context).quitRequested()) arm(context, null)
         else engine(context, store(context)).rearm(System.currentTimeMillis())
     }
@@ -144,6 +163,83 @@ object TriggerRuntime {
 
     @Synchronized fun list(context: Context): List<TriggerDefinition> = store(context).all()
 
+    /** 启用中的分享常规，按这次分享的类型匹配。 */
+    @Synchronized fun matchingShare(context: Context, type: ShareType): List<TriggerDefinition> =
+        ShareMatch.matching(store(context).all(), type)
+
+    /** 启用中的手动常规，作为空对话和新对话输入框上方的常用说法。 */
+    @Synchronized fun commonPhrases(context: Context): List<TriggerDefinition> =
+        ShareMatch.phrases(store(context).all())
+
+    @Synchronized fun addManual(context: Context, name: String, goal: String, enabled: Boolean = true): TriggerDefinition {
+        val def = TriggerDefinition(
+            id = "routine:manual:${UUID.randomUUID()}",
+            threadId = newRoutineThread(context, name),
+            goal = goal.trim(),
+            nextAtMs = 0,
+            enabled = enabled,
+            displayName = name.trim(),
+            kind = RoutineKind.Manual,
+        )
+        upsertRoutine(context, def)
+        return def
+    }
+
+    @Synchronized fun addWatch(context: Context, url: String, expect: String): TriggerDefinition {
+        val u = url.trim()
+        val e = expect.trim()
+        require(u.startsWith("http://") || u.startsWith("https://"))
+        require(e.isNotEmpty())
+        val def = WatchPage.create(
+            id = "routine:watch:${UUID.randomUUID()}",
+            threadId = newRoutineThread(context, WatchPage.NAME),
+            url = u, expect = e, nowMs = System.currentTimeMillis(),
+        )
+        upsertRoutine(context, def)
+        return def
+    }
+
+    @Synchronized fun setTopics(context: Context, id: String, topics: List<String>): Boolean {
+        val store = store(context)
+        val t = store.get(id) ?: return false
+        val next = topics.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        val enabled = t.enabled && next.isNotEmpty()
+        store.upsert(t.copy(topics = next, enabled = enabled))
+        engine(context, store).rearm(System.currentTimeMillis())
+        return true
+    }
+
+    @Synchronized fun addShare(
+        context: Context, name: String, goal: String, types: List<ShareType>, enabled: Boolean = true,
+    ): TriggerDefinition {
+        require(types.isNotEmpty())
+        val def = TriggerDefinition(
+            id = "routine:share:${UUID.randomUUID()}",
+            threadId = newRoutineThread(context, name),
+            goal = goal.trim(),
+            nextAtMs = 0,
+            enabled = enabled,
+            displayName = name.trim(),
+            kind = RoutineKind.Share,
+            shareTypes = types.distinct(),
+        )
+        upsertRoutine(context, def)
+        return def
+    }
+
+    private fun newRoutineThread(context: Context, name: String): String {
+        val conversations = ConversationStore.shared(context)
+        val threadId = conversations.newConversation()
+        conversations.setTitle(threadId, name.trim())
+        return threadId
+    }
+
+    private fun upsertRoutine(context: Context, definition: TriggerDefinition) {
+        val store = store(context)
+        store.upsert(definition)
+        engine(context, store).rearm(System.currentTimeMillis())
+    }
+
     fun canScheduleExactly(context: Context): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
         context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
 
@@ -174,6 +270,8 @@ object TriggerRuntime {
         val trigger = store.get(id) ?: error(tr(R.string.trigger_deleted))
         val window = store.claimNow(id, System.currentTimeMillis()) ?: error(tr(R.string.trigger_busy))
         try {
+            if (missingPack(context, trigger, store, window.key)) return
+            if (skipWorth(context, store, trigger, window.key)) return
             if (trigger.reminderText != null) deliverReminder(context, store, trigger, window.key)
             else TaskService.startTrigger(context, trigger.goal, trigger.threadId, window.key,
                 trigger.conditionCheckGoal(ZoneId.systemDefault()), trigger.conditionGoal)
@@ -207,13 +305,216 @@ object TriggerRuntime {
         return store
     }
 
+    /**
+     * 这一次运行要不要发结果通知。会记下连续失败：第一次失败通知，之后折叠直到成功。
+     * 早晨安排另按设备快照比变化：第一次只记下，无变化不通知。
+     * 不是定时任务的运行（没有窗口）仍通知。
+     */
+    @Synchronized fun shouldNotify(context: Context, windowKey: String?, end: TaskState): Boolean {
+        if (windowKey.isNullOrEmpty()) return true
+        val store = store(context)
+        val id = store.windows().firstOrNull { it.key == windowKey }?.triggerId ?: return true
+        val trigger = store.get(id) ?: return true
+        val result = PlanResult.of(end)
+        val fold = FailureFold.note(trigger.consecutiveFailures, result)
+        if (WorthReading.isThis(trigger) || WatchPage.isThis(trigger)) {
+            if (result == PlanResult.Cancel) {
+                store.upsert(trigger.copy(consecutiveFailures = fold.consecutiveFailures))
+                return true
+            }
+            val current = (end as? TaskState.Succeeded)?.answer.orEmpty()
+            val previous = trigger.snapshot
+            val speak = when {
+                result == PlanResult.Failure -> true
+                WorthNotify.emptyTopics(trigger) -> false
+                WatchPage.isThis(trigger) -> WorthNotify.shouldSpeakWatch(previous, current)
+                previous == null -> false
+                current.contains("无变化") -> false
+                else -> previous != current
+            }
+            val status = when {
+                result == PlanResult.Failure -> RoutineStatus.Failed
+                previous == null && !speak -> RoutineStatus.Recorded
+                !speak -> RoutineStatus.Unchanged
+                else -> RoutineStatus.Done
+            }
+            var next = trigger.copy(
+                consecutiveFailures = fold.consecutiveFailures,
+                snapshot = current.takeIf { it.isNotBlank() } ?: trigger.snapshot,
+                lastStatus = status.name.lowercase(),
+            )
+            val notify = when (result) {
+                PlanResult.Failure -> fold.notify
+                PlanResult.Cancel -> true
+                PlanResult.Success -> if (trigger.notifyOnChange) speak else true
+            }
+            if (notify) next = WorthNotify.noteNotified(next)
+            store.upsert(next)
+            return notify
+        }
+        if (isMorning(trigger)) {
+            if (result == PlanResult.Cancel) {
+                store.upsert(trigger.copy(consecutiveFailures = fold.consecutiveFailures))
+                return true
+            }
+            val current = MorningSnapshot.of(
+                AndroidCalendarSource(context).todayAndTomorrow(),
+                AndroidAlarmSource(context).next(),
+            )
+            val previous = MorningSnapshot.decode(trigger.snapshot)
+            val speak = MorningNotify.shouldSpeak(previous, current)
+            val status = when {
+                result == PlanResult.Failure || current.readFailed -> RoutineStatus.Failed
+                previous == null && !speak -> RoutineStatus.Recorded
+                !speak -> RoutineStatus.Unchanged
+                else -> RoutineStatus.Done
+            }
+            store.upsert(trigger.copy(
+                consecutiveFailures = fold.consecutiveFailures,
+                snapshot = current.encode(),
+                lastStatus = status.name.lowercase(),
+            ))
+            return when (result) {
+                PlanResult.Failure -> fold.notify
+                PlanResult.Cancel -> true
+                PlanResult.Success -> if (trigger.notifyOnChange) speak else true
+            }
+        }
+        if (fold.consecutiveFailures != trigger.consecutiveFailures) {
+            store.upsert(trigger.copy(consecutiveFailures = fold.consecutiveFailures))
+        }
+        return fold.notify
+    }
+
+    /** 这条窗口所属计划；没有窗口或计划时为 null。 */
+    @Synchronized fun routineForWindow(context: Context, windowKey: String?): TriggerDefinition? {
+        if (windowKey.isNullOrEmpty()) return null
+        val store = store(context)
+        val id = store.windows().firstOrNull { it.key == windowKey }?.triggerId ?: return null
+        return store.get(id)
+    }
+
+    /** 这条窗口所属计划的停止分钟数；没有或不另限时为 null。 */
+    @Synchronized fun stopMinutesForWindow(context: Context, windowKey: String?): Int? =
+        routineForWindow(context, windowKey)?.stopMinutes
+
+    /** 这条窗口所属计划的常规 token 上限；没有计划或未设时为 0。 */
+    @Synchronized fun tokenCapForWindow(context: Context, windowKey: String?): Long {
+        if (windowKey.isNullOrEmpty()) return 0
+        val store = store(context)
+        val id = store.windows().firstOrNull { it.key == windowKey }?.triggerId ?: return 0
+        return store.get(id)?.tokenCap ?: 0
+    }
+
+    /**
+     * 装过一次就记下，用户删掉内置早晨安排也不再创建。
+     * 第一次见到已有这条计划（升级前手动建过）也只记种过，不覆盖。
+     */
+    @Synchronized fun seedMorning(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(SEEDED_MORNING, false)) return
+        val store = store(context)
+        if (store.get(MorningRoutine.ID) != null) {
+            prefs.edit().putBoolean(SEEDED_MORNING, true).apply()
+            return
+        }
+        val conversations = ConversationStore.shared(context)
+        val threadId = conversations.newConversation()
+        conversations.setTitle(threadId, MorningRoutine.NAME)
+        store.upsert(MorningRoutine.seed(threadId, System.currentTimeMillis()))
+        prefs.edit().putBoolean(SEEDED_MORNING, true).apply()
+    }
+
+    @Synchronized fun seedWorthReading(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(SEEDED_WORTH, false)) return
+        val store = store(context)
+        if (store.get(WorthReading.ID) != null) {
+            prefs.edit().putBoolean(SEEDED_WORTH, true).apply()
+            return
+        }
+        val conversations = ConversationStore.shared(context)
+        val threadId = conversations.newConversation()
+        conversations.setTitle(threadId, WorthReading.NAME)
+        store.upsert(WorthReading.seed(threadId, System.currentTimeMillis()))
+        prefs.edit().putBoolean(SEEDED_WORTH, true).apply()
+    }
+
+    @Synchronized fun noteConversationOpened(context: Context, conversationId: String) {
+        val store = store(context)
+        store.all().filter { it.threadId == conversationId && it.pendingUnseen }.forEach {
+            store.upsert(WorthNotify.noteSeen(it))
+        }
+    }
+
+    @Synchronized fun rejectSuggestion(context: Context, text: String, conversationId: String) {
+        val mem = com.wangzan101.mika.memory.MemoryRuntime.of(context).store()
+        mem.add(
+            com.wangzan101.mika.core.memory.MemoryKind.preference,
+            text,
+            emptyList(),
+            com.wangzan101.mika.core.memory.MemorySource("click", text, conversationId, System.currentTimeMillis()),
+        )
+        noteConversationOpened(context, conversationId)
+    }
+
+    private fun isMorning(trigger: TriggerDefinition): Boolean =
+        trigger.builtinId == MorningRoutine.ID || trigger.id == MorningRoutine.ID
+
     private fun engine(context: Context, store: FileTriggerStore) = TriggerEngine(store,
-        { at -> arm(context, at) }, isIdle = { !((context.applicationContext as MikaApp).taskState.busy.value) }) { trigger, window ->
-            if (trigger.reminderText != null) deliverReminder(context, store, trigger, window.key)
+        { at -> arm(context, at) },
+        isIdle = { !((context.applicationContext as MikaApp).taskState.busy.value) },
+        quietHours = { AssistantLimits.quietHours(context) },
+        zone = { ZoneId.systemDefault() },
+    ) { trigger, window ->
+            if (missingPack(context, trigger, store, window.key)) { }
+            else if (skipWorth(context, store, trigger, window.key)) { }
+            else if (trigger.reminderText != null) deliverReminder(context, store, trigger, window.key)
             else try { TaskService.startTrigger(context, trigger.goal, trigger.threadId, window.key,
                     trigger.conditionCheckGoal(ZoneId.systemDefault()), trigger.conditionGoal) }
                 catch (e: Exception) { reportStartFailure(context, store, trigger, window.key, e); throw e }
         }
+
+    private fun skipWorth(context: Context, store: FileTriggerStore, trigger: TriggerDefinition, key: String): Boolean {
+        var t = trigger
+        if (t.pendingUnseen) {
+            t = WorthNotify.onRunStart(t)
+            store.upsert(t)
+            if (WorthNotify.pausedUnwatched(t)) {
+                store.mark(key, TriggerWindowState.Skipped, WorthNotify.UNWATCHED)
+                return true
+            }
+        }
+        if (WorthNotify.emptyTopics(t)) {
+            val conversations = ConversationStore.shared(context)
+            val runId = "worth-empty:$key"
+            if (conversations.turns(t.threadId).none { it.runId == runId }) {
+                conversations.append(t.threadId, Turn(t.goal, WorthReading.EMPTY_ANSWER, "succeeded", runId = runId))
+            }
+            store.upsert(t.copy(enabled = false, lastStatus = "disabled"))
+            store.mark(key, TriggerWindowState.Delivered)
+            return true
+        }
+        if ((WorthReading.isThis(t) || WatchPage.isThis(t)) &&
+            com.wangzan101.mika.settings.WebSearchSettings.get(context).service() == null) {
+            val message = tr(R.string.today_status_failed)
+            val conversations = ConversationStore.shared(context)
+            val runId = "worth-nosearch:$key"
+            if (conversations.turns(t.threadId).none { it.runId == runId }) {
+                conversations.append(t.threadId, Turn(t.goal, message, "failed", runId = runId))
+            }
+            store.upsert(t.copy(lastStatus = "failed"))
+            store.mark(key, TriggerWindowState.Failed, "no_web_search")
+            return true
+        }
+        return false
+    }
+
+    private fun missingPack(context: Context, trigger: TriggerDefinition, store: FileTriggerStore, key: String): Boolean {
+        if (!com.wangzan101.mika.core.pack.PackLifecycle.missingScript(trigger.packId, com.wangzan101.mika.pack.PackStore.installedIds(context))) return false
+        store.mark(key, TriggerWindowState.Failed, "pack_script_missing")
+        return true
+    }
 
     private fun deliverReminder(context: Context, store: FileTriggerStore, trigger: TriggerDefinition, key: String) {
         val text = trigger.reminderText ?: return
@@ -289,6 +590,8 @@ object TriggerRuntime {
     private const val PREFS = "triggers"
     private const val PROMPTED = "exact_alarm_prompted"
     private const val KEY_DEVICE_ZONE = "device_timezone"
+    private const val SEEDED_MORNING = "seeded_morning"
+    private const val SEEDED_WORTH = "seeded_worth_reading"
 }
 
 /** 准时闹钟权限的引导:没开时只主动提醒一次,之后在定时任务页一直写明。 */

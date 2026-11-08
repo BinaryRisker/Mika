@@ -88,4 +88,25 @@
     <string name="skills_imported">导入的</string>
     <string name="skill_builtin_name">和内置技能重名了，改个名字再试。</string>
     <string name="skill_draft_pending">已经有一份同名草稿在等你确认，先处理那份。</string>
+    <string name="packs_title">扩展包</string>
+    <string name="packs_sub">装一份技能、脚本和常规模板</string>
+    <string name="backup_export">导出</string>
+    <string name="backup_export_sub">加密备份记忆、技能、包和常规，不含服务商密钥</string>
+    <string name="packs_import">安装扩展包</string>
+    <string name="packs_uninstall">卸掉 %1$s</string>
+    <string name="packs_uninstall_title">这个包里已启用的常规</string>
+    <string name="packs_keep_routines">留下并保持启用</string>
+    <string name="packs_stop_routines">停用</string>
+    <string name="packs_installed">已装上 %1$s</string>
+    <string name="packs_rejected">整份没装上（%1$s）</string>
+    <string name="packs_removed">包已卸掉</string>
+    <string name="backup_import">导入</string>
+    <string name="backup_password">口令</string>
+    <string name="backup_password_hint">只用于这份文件，Mika 不保存。</string>
+    <string name="backup_preview">这份文件有 %1$d 条记忆、%2$d 份技能、%3$d 个包、%4$d 条常规、%5$d 条允许、%6$d 条禁止。常规会以关闭写入，名单将被替换。</string>
+    <string name="backup_import_confirm">导入</string>
+    <string name="backup_saved">已导出</string>
+    <string name="backup_imported">已导入。常规是关着的。</string>
+    <string name="backup_failed">这份文件没能读出或写出</string>
+    <string name="backup_bad_password">口令不对</string>
 </resources>

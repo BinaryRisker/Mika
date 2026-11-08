@@ -85,9 +85,12 @@ class DescribedActionsTest {
         assertEquals("confirmation_required", o.code)
         assertEquals(IrrevAction.order, o.hit?.action)
         assertTrue(screen.calls.isEmpty())
-        // 删除不花钱:按描述找到就做
-        assertTrue(run(executor(toolDispatcher(screen)), "phone_tap", """{"element":"删除"}""") is ActionOutcome.Ran)
-        assertEquals(listOf("tap @e4"), screen.calls)
+        // 删除也要这一次同意:按描述找到了也不做
+        val deleted = run(executor(toolDispatcher(screen)), "phone_tap", """{"element":"删除"}""")
+        deleted as ActionOutcome.Refused
+        assertEquals("confirmation_required", deleted.code)
+        assertEquals(IrrevAction.delete, deleted.hit?.action)
+        assertTrue(screen.calls.isEmpty())
     }
 
     @Test fun descriptionWithARefIsRejected() = runTest {
@@ -154,12 +157,21 @@ class DescribedActionsTest {
         assertTrue(actions, "\"dialog\"" in actions)
     }
 
-    @Test fun pageDialogIsShownAndAnsweredWithoutAskingWhenItSpendsNoMoney() = runTest {
+    @Test fun pageDialogThatDeletesAsksEvenWhenItSpendsNoMoney() = runTest {
         val web = FakeWebPort().apply { dialog = PageDialog(PageDialog.CONFIRM, "确定删除这条记录吗?") }
         val tools = toolDispatcher(FakeScreen(), web = web)
         val seen = tools.execute(Part.ToolCall("o", "web_observe", "{}")).content
         assertEquals(JsonPrimitive("确定删除这条记录吗?"), (seen["dialog"] as JsonObject)["message"])
-        val e = executor(tools)
+        val accept = run(executor(tools), "web_interact", """{"action":"dialog","answer":"accept"}""")
+        accept as ActionOutcome.Refused
+        assertEquals("confirmation_required", accept.code)
+        assertEquals(IrrevAction.delete, accept.hit?.action)
+        assertTrue(web.calls.toString(), web.calls.none { it.startsWith("dialog") })
+    }
+
+    @Test fun pageDialogThatDoesNotSendOrDeleteIsAnsweredWithoutAsking() = runTest {
+        val web = FakeWebPort().apply { dialog = PageDialog(PageDialog.CONFIRM, "确定离开这个页面吗?") }
+        val e = executor(toolDispatcher(FakeScreen(), web = web))
         val accept = run(e, "web_interact", """{"action":"dialog","answer":"accept"}""")
         assertTrue("$accept", accept is ActionOutcome.Ran)
         assertTrue(web.calls.toString(), "dialog true -" in web.calls)

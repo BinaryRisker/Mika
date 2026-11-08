@@ -4,8 +4,17 @@ import androidx.compose.foundation.gestures.scrollBy
 import com.wangzan101.mika.core.agent.QuoteMessage
 import com.wangzan101.mika.core.record.ConversationTokens
 import com.wangzan101.mika.core.cap.web.AttachedPage
+import com.wangzan101.mika.ui.components.ActionSheet
+import com.wangzan101.mika.ui.components.ButtonKind
+import com.wangzan101.mika.ui.components.ButtonSize
 import com.wangzan101.mika.ui.components.DirectionalIcon
 import com.wangzan101.mika.ui.components.keepsKeyboard
+import com.wangzan101.mika.ui.components.MikaButton
+import com.wangzan101.mika.ui.components.SheetAction
+import com.wangzan101.mika.core.trigger.ShareMatch
+import com.wangzan101.mika.core.trigger.TriggerDefinition
+import com.wangzan101.mika.task.TriggerRuntime
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
@@ -30,6 +39,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -130,6 +141,8 @@ import com.wangzan101.mika.ui.components.GlassBackdrop
 import com.wangzan101.mika.ui.components.GlassBar
 import com.wangzan101.mika.ui.components.MikaButton
 import com.wangzan101.mika.ui.components.MikaCard
+import com.wangzan101.mika.ui.components.MikaSwitch
+import androidx.compose.material3.OutlinedTextField
 import com.wangzan101.mika.ui.components.PageBackground
 import com.wangzan101.mika.ui.components.TopBar
 import com.wangzan101.mika.ui.components.cardSurface
@@ -272,6 +285,30 @@ fun ChatScreen(
     val c = MikaTheme.colors
     val backdrop = rememberGlassBackdrop()
     val context = LocalContext.current
+    LaunchedEffect(ui.conversationId) {
+        ui.conversationId?.let { TriggerRuntime.noteConversationOpened(context, it) }
+    }
+    var phrases by remember { mutableStateOf(emptyList<TriggerDefinition>()) }
+    LifecycleResumeEffect(Unit) {
+        phrases = TriggerRuntime.commonPhrases(context)
+        onPauseOrDispose {}
+    }
+    var skippedShareId by rememberSaveable { mutableStateOf<String?>(null) }
+    var skipTopicPrompt by rememberSaveable { mutableStateOf(false) }
+    var sharePick by remember { mutableStateOf<List<TriggerDefinition>?>(null) }
+    LaunchedEffect(ui.sharedDraft?.conversationId) {
+        val draft = ui.sharedDraft
+        if (draft == null) {
+            sharePick = null
+            return@LaunchedEffect
+        }
+        if (draft.conversationId == skippedShareId) {
+            sharePick = null
+            return@LaunchedEffect
+        }
+        val matches = TriggerRuntime.matchingShare(context, ShareMatch.shareType(draft.image != null))
+        sharePick = matches.takeIf { it.isNotEmpty() }
+    }
     /** 长按了的那条消息;菜单开着(收起的动画放完才清掉)。 */
     var menu by remember { mutableStateOf<MessageTarget?>(null) }
     /** 选了「选择文字」的那条:它换回系统的长按选中;换对话时清掉。 */
@@ -306,6 +343,20 @@ fun ChatScreen(
             ) {
                 if (ui.exchanges.isEmpty() && ui.blocked == null) {
                     item("empty") { EmptyState(ui.conversationId) { input = it } }
+                    val worth = TriggerRuntime.list(context).firstOrNull { com.wangzan101.mika.core.trigger.WorthReading.isThis(it) }
+                    if (!skipTopicPrompt && worth != null && !worth.enabled && worth.topics.none { it.isNotBlank() }) item("topic-prompt") {
+                        TopicPromptCard(
+                            onDismiss = { skipTopicPrompt = true },
+                            onSave = { topic, enable ->
+                                val worth = TriggerRuntime.list(context).firstOrNull { com.wangzan101.mika.core.trigger.WorthReading.isThis(it) }
+                                if (worth != null && topic.isNotBlank()) {
+                                    TriggerRuntime.setTopics(context, worth.id, listOf(topic))
+                                    if (enable) TriggerRuntime.setEnabled(context, worth.id, true)
+                                }
+                                skipTopicPrompt = true
+                            },
+                        )
+                    }
                 }
                 ui.exchanges.forEachIndexed { i, ex ->
                     val backgroundNote = i == ui.exchanges.lastIndex && ui.operatingPhone
@@ -389,7 +440,28 @@ fun ChatScreen(
             steerTarget = if (ui.followUpMode == FollowUpMode.Steer) last?.goal?.let(ChatCopy::plainTitle) else null,
             onVoiceHolding = { voiceHolding = it },
             editRequest = editRequest,
+            phrases = if (ui.exchanges.isEmpty() && ui.composer == ComposerMode.Idle) phrases else emptyList(),
+            onPhrase = { input = it },
         )
+
+        sharePick?.let { matches ->
+            ActionSheet(
+                stringResource(R.string.share_pick_title),
+                matches.map { plan ->
+                    SheetAction(plan.phraseName) {
+                        if (vm.startShareRoutine(plan.goal, check)) input = ""
+                        sharePick = null
+                    }
+                } + SheetAction(stringResource(R.string.share_pick_skip)) {
+                    skippedShareId = ui.sharedDraft?.conversationId
+                    sharePick = null
+                },
+                onDismiss = {
+                    skippedShareId = ui.sharedDraft?.conversationId
+                    sharePick = null
+                },
+            )
+        }
 
         AgentPip(
             pip = ui.pip,
@@ -488,6 +560,28 @@ private fun LazyListState.nearTail(thresholdPx: Int): Boolean {
 
 /** 问候、一句「想让 Mika 做什么？」和一列示例;点示例把它填进输入框,改好了再发。 */
 @Composable
+@Composable
+private fun TopicPromptCard(onDismiss: () -> Unit, onSave: (String, Boolean) -> Unit) {
+    var topic by rememberSaveable { mutableStateOf("") }
+    var enable by rememberSaveable { mutableStateOf(false) }
+    MikaCard(Modifier.padding(top = 16.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.worth_prompt_title), style = MikaType.Body, color = MikaTheme.colors.ink)
+            OutlinedTextField(topic, { topic = it }, Modifier.fillMaxWidth().padding(top = 8.dp).keepsKeyboard(),
+                label = { Text(stringResource(R.string.worth_prompt_hint)) }, singleLine = true)
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.plans_enabled), Modifier.weight(1f), style = MikaType.Body)
+                MikaSwitch(enable, { enable = it })
+            }
+            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MikaButton(stringResource(R.string.no_thanks), onDismiss, kind = ButtonKind.Tonal, size = ButtonSize.Small)
+                MikaButton(stringResource(R.string.worth_prompt_save), { onSave(topic, enable) }, size = ButtonSize.Small)
+            }
+        }
+    }
+}
+
+@Composable
 private fun EmptyState(conversation: String?, onPick: (String) -> Unit) {
     val c = MikaTheme.colors
     val hour = remember(conversation) { LocalTime.now().hour }
@@ -500,6 +594,16 @@ private fun EmptyState(conversation: String?, onPick: (String) -> Unit) {
             ChatCopy.examples.forEachIndexed { i, ex ->
                 ExampleRow(exampleIcon(ex.kind), ex.text, first = i == 0) { onPick(ex.text) }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PhraseChips(phrases: List<TriggerDefinition>, onPhrase: (String) -> Unit, modifier: Modifier = Modifier) {
+    FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        phrases.forEach { plan ->
+            MikaButton(plan.phraseName, { onPhrase(plan.goal) }, kind = ButtonKind.Tonal, size = ButtonSize.Small)
         }
     }
 }
@@ -982,7 +1086,7 @@ private fun StatusCard(
         }
         is ExchangeStatus.NeedsInput -> {
             val options = status.options.orEmpty()
-            val note = stringResource(R.string.no_answer_note, TaskService.INPUT_TIMEOUT_MINUTES)
+            val note = if (status.liveWait) stringResource(R.string.no_answer_note, TaskService.INPUT_TIMEOUT_MINUTES) else ""
             NeedCard(
                 stringResource(R.string.input_title), stringResource(R.string.chat_input_body, status.prompt, note),
                 options = if (options.isEmpty()) null else ({
@@ -1196,6 +1300,9 @@ internal fun Composer(
     steerTarget: String? = null,
     /** 按着说话时为 true:对话内容跟着虚化。 */
     onVoiceHolding: (Boolean) -> Unit = {},
+    /** 启用中的手动常规；点一下把目标填进输入框，不发送。 */
+    phrases: List<TriggerDefinition> = emptyList(),
+    onPhrase: (String) -> Unit = {},
 ) {
     val c = MikaTheme.colors
     val vh = rememberVoiceHold(voice, onVoiceText)
@@ -1274,6 +1381,9 @@ internal fun Composer(
             if (busy) FollowUpModeBar(followUpMode, onFollowUpMode, followUpStatus)
             FollowUpTray(queued, active = mode != ComposerMode.Idle, onEdit = onEditQueued, onCancel = onCancelQueued, onStartNow = onStartQueued)
             quote?.let { QuoteChip(it, onRemoveQuote, Modifier.padding(bottom = 6.dp)) }
+            if (phrases.isNotEmpty()) {
+                PhraseChips(phrases, onPhrase, Modifier.padding(bottom = 8.dp))
+            }
             if (attachments.isNotEmpty()) PendingTray(attachments, onRemove, Modifier.padding(bottom = 2.dp))
             if (importing || rejected.isNotEmpty() || overLimit > 0) {
                 Column(Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

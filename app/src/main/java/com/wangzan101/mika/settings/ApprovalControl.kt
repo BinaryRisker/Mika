@@ -5,10 +5,10 @@ import com.wangzan101.mika.core.gate.ConfirmationGate
 
 /**
  * 一个任务自己的审批设置:自主与否是开工时取全局的,之后跟着开发者选项里的「自主模式」变([set])。
- * 询问时只有付款先问;自主时连付款也不问。
+ * 询问时付款先问。自主时付款不问,但没在允许名单里的发送和删除仍问,所以确认关卡一直都在。
  */
 class RunApproval(startAutonomous: Boolean) : ApprovalSettings {
-    /** 开工时就是自主:这个任务没有确认关卡,也不给 request_confirmation;中途关掉自主留给下一个任务。 */
+    /** 开工时就是自主:付款不问。发送和删除仍用确认关卡。中途关掉自主留给下一个任务。 */
     val startedAutonomous: Boolean = startAutonomous
     @Volatile private var auto = startAutonomous
 
@@ -18,8 +18,8 @@ class RunApproval(startAutonomous: Boolean) : ApprovalSettings {
         auto = autonomous
     }
 
-    /** 这个任务(和它的子任务)用的付款确认关卡:开工时是询问才有,每次一份新的。 */
-    fun gate(): ConfirmationGate? = if (startedAutonomous) null else ConfirmationGate()
+    /** 这个任务(和它的子任务)用的确认关卡。询问和自主都有,每次一份新的,发送才能走原来的卡片。 */
+    fun gate(): ConfirmationGate? = ConfirmationGate()
 }
 
 /**

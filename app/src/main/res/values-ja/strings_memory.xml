@@ -88,4 +88,25 @@
     <string name="skills_imported">インポート済み</string>
     <string name="skill_builtin_name">同じ名前の組み込みスキルがあります。名前を変えてもう一度試してください。</string>
     <string name="skill_draft_pending">同じ名前の下書きが確認待ちです。先にそちらを処理してください。</string>
+    <string name="packs_title">パック</string>
+    <string name="packs_sub">スキル・スクリプト・ルーチンをまとめて入れる</string>
+    <string name="backup_export">書き出す</string>
+    <string name="backup_export_sub">記憶・スキル・パック・ルーチンの暗号化コピー。APIキーは含みません</string>
+    <string name="packs_import">パックを入れる</string>
+    <string name="packs_uninstall">%1$s を外す</string>
+    <string name="packs_uninstall_title">このパックの有効なルーチン</string>
+    <string name="packs_keep_routines">有効のまま残す</string>
+    <string name="packs_stop_routines">オフにする</string>
+    <string name="packs_installed">%1$s を入れました</string>
+    <string name="packs_rejected">パックを入れられません（%1$s）</string>
+    <string name="packs_removed">パックを外しました</string>
+    <string name="backup_import">読み込む</string>
+    <string name="backup_password">パスワード</string>
+    <string name="backup_password_hint">このファイルだけに使います。Mika は保存しません。</string>
+    <string name="backup_preview">記憶 %1$d、スキル %2$d、パック %3$d、ルーチン %4$d、許可 %5$d、禁止 %6$d。ルーチンはオフで入り、リストは置き換わります。</string>
+    <string name="backup_import_confirm">読み込む</string>
+    <string name="backup_saved">書き出しました</string>
+    <string name="backup_imported">読み込みました。ルーチンはオフです。</string>
+    <string name="backup_failed">このファイルを扱えませんでした</string>
+    <string name="backup_bad_password">パスワードが違います</string>
 </resources>

@@ -12,7 +12,7 @@ sealed interface Delivery {
 
     data class Ask(
         override val id: String, override val threadId: String, val askId: String,
-        val kind: Kind, val text: String,
+        val kind: Kind, val text: String, val options: List<String> = emptyList(),
     ) : Delivery {
         enum class Kind { Input, Confirm, Takeover }
     }

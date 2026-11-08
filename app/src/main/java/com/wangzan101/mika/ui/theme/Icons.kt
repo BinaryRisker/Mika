@@ -67,6 +67,11 @@ object MikaIcons {
     /** 柱状图:Token 用量。 */
     val Chart = stroke("chart", "M4 20 h16", "M7 16 v-4 M12 16 V6 M17 16 v-7")
     val Clock = stroke("clock", "M3 12 a9 9 0 1 0 18 0 a9 9 0 1 0 -18 0", "M12 7 v5 l3 2")
+    val Calendar = stroke(
+        "calendar",
+        "M5 6 h14 a2 2 0 0 1 2 2 v12 a2 2 0 0 1 -2 2 h-14 a2 2 0 0 1 -2 -2 v-12 a2 2 0 0 1 2 -2 z",
+        "M8 3 v4 M16 3 v4 M3 10 h18",
+    )
     val Alarm = stroke(
         "alarm", "M5 13 a7 7 0 1 0 14 0 a7 7 0 1 0 -14 0", "M12 10 v3 l2 1.5 M5 4 L2.5 6.5 M19 4 l2.5 2.5",
     )

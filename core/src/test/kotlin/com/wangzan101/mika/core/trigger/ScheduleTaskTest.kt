@@ -11,10 +11,14 @@ import com.wangzan101.mika.core.tool.ActionPass
 import com.wangzan101.mika.core.tool.FakeScreen
 import com.wangzan101.mika.core.cap.web.FakeWebPort
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.long
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 class ScheduleTaskTest {
     @Test fun userCanListAndPauseOwnPlanFromConversation() = runBlocking {
@@ -153,12 +157,50 @@ class ScheduleTaskTest {
         assertTrue(text, text.contains("\"baselineValue\":\"<untrusted>\\n最低 ¥700\\n</untrusted>\""))
     }
 
-    @Test fun unattendedRunCannotAskOrCreateAnotherSchedule() = runBlocking {
+    @Test fun createReturnsTheNextThreeLocalOccurrenceTimes() = runBlocking {
+        var saved: TriggerDefinition? = null
+        val tools = toolDispatcher(FakeScreen(), conversationId = "conversation", scheduleTrigger = { saved = it; Scheduled(true) })
+        val at = "2026-12-01T01:00:00Z"
+        val result = tools.execute(Part.ToolCall("s", "schedule_task",
+            """{"goal":"查天气","at":"$at","intervalMinutes":60}"""), ActionPass())
+        assertEquals(true, result.content["scheduled"]?.toString()?.toBoolean())
+        val first = Instant.parse(at).toEpochMilli()
+        val times = (result.content["upcomingMs"] as JsonArray).map { (it as JsonPrimitive).long }
+        assertEquals(listOf(first, first + 3_600_000, first + 7_200_000), times)
+        assertEquals(first, saved!!.nextAtMs)
+        assertEquals(upcoming(saved!!, saved!!.nextAtMs, 3), times)
+    }
+
+    @Test fun rescheduleReturnsTheNextThreeTimesFromTheSameRecurrence() = runBlocking {
+        val at = Instant.parse("2026-12-01T03:00:00Z").toEpochMilli()
+        val plan = TriggerDefinition("plan-1", "conversation", "查天气", 1_000, intervalMs = 3_600_000)
+        var movedTo = 0L
+        val admin = object : ScheduleAdmin {
+            override fun list(threadId: String) = if (threadId == "conversation") listOf(plan) else emptyList()
+            override fun setEnabled(threadId: String, id: String, enabled: Boolean) = false
+            override fun remove(threadId: String, id: String) = false
+            override fun reschedule(threadId: String, id: String, atMs: Long): Boolean {
+                movedTo = atMs
+                return threadId == "conversation" && id == "plan-1"
+            }
+            override fun runNow(threadId: String, id: String) = false
+        }
+        val tools = toolDispatcher(FakeScreen(), conversationId = "conversation", scheduleAdmin = admin)
+        val result = tools.execute(Part.ToolCall("r", "schedule_task",
+            """{"op":"reschedule","triggerId":"plan-1","at":"2026-12-01T03:00:00Z"}"""), ActionPass())
+        assertEquals(true, result.content["changed"]?.toString()?.toBoolean())
+        assertEquals(at, movedTo)
+        val times = (result.content["upcomingMs"] as JsonArray).map { (it as JsonPrimitive).long }
+        assertEquals(upcoming(plan.rescheduledTo(at), at, 3), times)
+        assertEquals(listOf(at, at + 3_600_000, at + 7_200_000), times)
+    }
+
+    @Test fun unattendedRunCanAskUserButCannotCreateAnotherSchedule() = runBlocking {
         val spec = RunSpec(RunId("trigger"), "check", "thread", provenance = RunProvenance(RunOrigin.Trigger, Attendance.Unattended))
         val tools = toolDispatcher(FakeScreen(), runSpec = spec, scheduleTrigger = { Scheduled(true) })
         val names = tools.definitions().map { it.name }
         assertFalse("schedule_task" in names)
-        assertFalse("ask_user" in names)
+        assertTrue("ask_user" in names)
         assertFalse("request_confirmation" in names)
         assertFalse("hand_to_user" in names)
         val result = tools.execute(Part.ToolCall("s", "schedule_task", "{}"), ActionPass())

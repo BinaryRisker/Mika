@@ -12,6 +12,9 @@ Apart from the knowledge format, the developer docs are in Chinese for now.
 | --- | --- |
 | [architecture.md](architecture.md) | The overall structure as the code stands, with class names and file paths: main loop, tools, phone control, browser, sandbox, computer access, knowledge and skills |
 | [roadmap.md](roadmap.md) | Done, next, known issues and deferred items |
+| [project-analysis.md](project-analysis.md) | What the project is, possible uses, and similar or derived GitHub projects (Chinese; surveyed 2026-11-01) |
+| [personal-assistant-research.md](personal-assistant-research.md) | Meta Muse, Today, and open-source personal agents, including OpenMinis and Operit (Chinese; surveyed 2026-11-06) |
+| [personal-assistant-prd.md](personal-assistant-prd.md) | Product requirements for a personal-assistant layer. Implementation stays on branch personal-assistant so upstream Mika can still merge (Chinese) |
 
 ## Writing knowledge and skills
 

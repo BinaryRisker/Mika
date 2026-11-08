@@ -173,6 +173,10 @@ object UsageQuery {
         )
     }
 
+    /** 本地日历日（含今天这一天）已用的输入加输出 token。 */
+    fun tokensOnLocalDay(snapshot: UsageSnapshot, now: Instant, zone: ZoneId): Long =
+        report(snapshot, UsageRange.LastDays(1), now, zone, emptyMap()).totals.tokens
+
     /** 按天的范围落到哪几天(含两头);自定义的两头写反了就对调。 */
     fun days(range: UsageRange, today: LocalDate): Pair<LocalDate, LocalDate> = when (range) {
         is UsageRange.LastDays -> today.minusDays(range.days.coerceAtLeast(1) - 1L) to today

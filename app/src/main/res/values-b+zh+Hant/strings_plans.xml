@@ -47,4 +47,25 @@
     <string name="plans_running_now">執行中</string>
     <string name="trigger_deleted">定時任務已刪除</string>
     <string name="trigger_busy">這條任務仍在執行</string>
+    <string name="plans_kind_manual">常用說法</string>
+    <string name="plans_kind_share">分享</string>
+    <string name="plans_share_text">文字</string>
+    <string name="plans_share_image">圖片</string>
+    <string name="plans_new_phrase">新建常用說法</string>
+    <string name="plans_new_share">新建分享常規</string>
+    <string name="plans_name_label">名字</string>
+    <string name="plans_goal_label">目標</string>
+    <string name="plans_share_accepts">接受的類型</string>
+    <string name="plans_need_name">請填寫名字</string>
+    <string name="plans_need_goal">請填寫目標</string>
+    <string name="plans_need_share_type">請選擇文字或圖片</string>
+    <string name="plans_create">建立</string>
+    <string name="plans_enabled">啟用</string>
+    <string name="plans_new_watch">盯這個頁面</string>
+    <string name="plans_watch_url">頁面網址</string>
+    <string name="plans_watch_expect">要等的變化</string>
+    <string name="plans_need_watch_url">請填寫 http(s) 網址</string>
+    <string name="plans_need_watch_expect">請填寫要等的變化</string>
+    <string name="plans_edit_topics">關注</string>
+    <string name="plans_topics_hint">每行一條關注</string>
 </resources>

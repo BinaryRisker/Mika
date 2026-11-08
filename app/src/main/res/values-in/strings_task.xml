@@ -78,4 +78,5 @@
     <string name="screens_waiting">Menunggu</string>
     <string name="screens_needs_you">Perlu Anda</string>
     <string name="screens_zoom">Perbesar layar ini</string>
+    <string name="routine_stopped_time">Dihentikan: rutin ini melewati batas waktunya</string>
 </resources>

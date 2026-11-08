@@ -1,0 +1,6 @@
+{
+  "id": "list-to-csv",
+  "version": "1",
+  "displayName": "列表收成表格",
+  "description": "把逐屏采到的行写成 CSV，再存到下载/Mika"
+}

@@ -48,4 +48,25 @@
     <string name="plans_running_now">Running</string>
     <string name="trigger_deleted">The scheduled task was deleted</string>
     <string name="trigger_busy">This task is still running</string>
+    <string name="plans_kind_manual">Phrase</string>
+    <string name="plans_kind_share">Share</string>
+    <string name="plans_share_text">Text</string>
+    <string name="plans_share_image">Images</string>
+    <string name="plans_new_phrase">New phrase</string>
+    <string name="plans_new_share">New share routine</string>
+    <string name="plans_name_label">Name</string>
+    <string name="plans_goal_label">What to do</string>
+    <string name="plans_share_accepts">Accepts</string>
+    <string name="plans_need_name">Enter a name</string>
+    <string name="plans_need_goal">Enter what it should do</string>
+    <string name="plans_need_share_type">Pick text, images, or both</string>
+    <string name="plans_create">Create</string>
+    <string name="plans_enabled">Enabled</string>
+    <string name="plans_new_watch">Watch this page</string>
+    <string name="plans_watch_url">Page URL</string>
+    <string name="plans_watch_expect">Change to wait for</string>
+    <string name="plans_need_watch_url">Enter an http(s) URL</string>
+    <string name="plans_need_watch_expect">Enter the change to wait for</string>
+    <string name="plans_edit_topics">Topics</string>
+    <string name="plans_topics_hint">One topic per line</string>
 </resources>

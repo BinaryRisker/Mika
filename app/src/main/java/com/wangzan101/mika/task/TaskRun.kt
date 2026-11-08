@@ -9,6 +9,7 @@ import com.wangzan101.mika.core.uistate.PlacePace
 import kotlin.random.Random
 import com.wangzan101.mika.core.action.OutwardPacing
 import com.wangzan101.mika.core.cap.phone.OperatingPace
+import com.wangzan101.mika.core.usage.RoutineTokenCap
 import com.wangzan101.mika.core.usage.RunUsageTally
 import com.wangzan101.mika.core.shell.AccessibilityRepair
 import com.wangzan101.mika.core.shell.HelperRestart
@@ -470,6 +471,25 @@ class TaskRun(
         service.taskState._endedRunIds.value = service.taskState._endedRunIds.value + (conversationId to _runId.value)
         if (service.taskState.shownRun === this) service.taskState._endedRunId.value = _runId.value
         setState(end)
+        if (end is TaskState.Terminal) noteLight(end)
+    }
+
+    private fun noteLight(end: TaskState.Terminal) {
+        val outcome = when (end) {
+            is TaskState.Succeeded -> if (end.doubtful) "做成（未核实）" else "做成"
+            is TaskState.Failed -> end.reason.lineSequence().first().trim().take(80)
+            TaskState.Cancelled -> "取消"
+        }
+        val files = _sharedFiles.value.map { it.name }
+        val routineId = triggerWindowKey?.substringBefore(':')
+        runCatching {
+            com.wangzan101.mika.ledger.LightLedgers.record(
+                service,
+                com.wangzan101.mika.core.ledger.LightEntry(
+                    System.currentTimeMillis(), conversationId, routineId, goal, outcome, files,
+                ),
+            )
+        }
     }
 
     /** 超出并行上限在排队;放出来开跑时 [dequeue]。 */
@@ -768,12 +788,20 @@ class TaskRun(
             // 这个对话里用户发来的屏幕(跟着对话存在工作区里)
             val userScreens = (service.application as MikaApp).userScreens.source(conversationId)
             val stepLimit = if (conditionCheck) null else FeatureFlags.get(service).taskStepLimit()
+            val routine = if (conditionCheck) null else TriggerRuntime.routineForWindow(service, triggerWindowKey)
             val runSpec = RunSpec(RunId(key), goal, conversationId,
                 priorTurns,
-                provenance, if (conditionCheck) setOf("web", "sandbox") else null, readOnly = conditionCheck,
+                provenance,
+                capabilities = when {
+                    conditionCheck -> setOf("web", "sandbox")
+                    routine != null && routine.capabilityIds.isNotEmpty() -> routine.capabilityIds.toSet()
+                    else -> null
+                },
+                toolNames = routine?.toolNames?.takeIf { it.isNotEmpty() }?.toSet(),
+                readOnly = conditionCheck,
                 stepBudget = stepLimit)
-            // 外部 MCP server 只在主任务接;子任务/条件检查/评测不接,避免绕过父任务审批、影响评测可复现
-            if (!conditionCheck) {
+            // 外部 MCP server 只在主任务接;子任务/条件检查/评测/收窄工具表的常规不接
+            if (!conditionCheck && routine?.capabilityIds.isNullOrEmpty()) {
                 // 连上的当场归 resources:收尾(含取消、失败、连到一半被停)关作用域时一起关,stdio server 的进程和沙箱租约跟着放掉
                 mcpConnections = (service.application as MikaApp).mcpServers.connectionsFor(
                     resources,
@@ -800,7 +828,7 @@ class TaskRun(
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
                         adaptiveVision = speed.adaptiveVision)
                     AgentLoop(model, childTools, SystemPrompt.identity(), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
-                        // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
+                        // 子任务跟着询问 / 自主,也有确认关卡。它只读,到不了发送和删除;花钱的一步一律不做
                         confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
                         reviewFinalAnswer = false, flags = speed, outwardPacing = OutwardPacing.human())
                 },
@@ -844,9 +872,19 @@ class TaskRun(
                 mcpServers = mcpEndpoints(),
                 // 仅用户明确配置并启用时提供通用搜索;否则继续用浏览器搜索。
                 webSearch = com.wangzan101.mika.settings.WebSearchSettings.get(service).service(),
+                searchAllowText = routine?.let {
+                    when {
+                        com.wangzan101.mika.core.trigger.WorthReading.isThis(it) -> it.topics.joinToString("\n")
+                        com.wangzan101.mika.core.trigger.WatchPage.isThis(it) ->
+                            listOfNotNull(it.watchUrl, it.watchExpect).joinToString("\n")
+                        else -> null
+                    }
+                }?.ifBlank { null },
                 // 已 root 的手机上用户打开了「允许 Mika 执行 root 命令」才登记 root 工具(子任务、条件检查不给)
                 root = phoneServices.shellManager.root.takeIf { !conditionCheck && it.commandsAllowed() }
-                    ?.let { r -> RootCommands(RootShell::su, r::commandsAllowed) { a -> if (a == null) r.suGone() else r.commandsDenied(a) } })
+                    ?.let { r -> RootCommands(RootShell::su, r::commandsAllowed) { a -> if (a == null) r.suGone() else r.commandsDenied(a) } },
+                calendar = com.wangzan101.mika.cap.sources.AndroidCalendarSource(service),
+                nextAlarm = com.wangzan101.mika.cap.sources.AndroidAlarmSource(service))
             dispatcher = tools
             val agent = AgentLoop(
                 model, tools,
@@ -869,8 +907,9 @@ class TaskRun(
                 maxSteps = env.evalHooks.maxSteps ?: runSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                 reviewFinalAnswer = false,
                 inputTimeoutMs = TaskService.INPUT_TIMEOUT_MS,
-                // 询问 / 自主:询问时只有花钱的一步先问(有确认关卡和 request_confirmation);自主时连付款也不问。
-                // 开工时询问、中途换成自主的,下一步起不再问;开工时自主的,换成询问留给下一个任务
+                // 询问 / 自主:付款只在询问时问。发送和删除两种模式都问(允许名单对上标题栏的发送除外)。
+                // 名单在开工时交给循环,默认空。自主仍有确认关卡,发送走原来的卡片。
+                // 开工时询问、中途换成自主的,下一步起付款不再问;开工时自主的,换成询问留给下一个任务
                 confirmations = runApproval.gate(),
                 approvals = runApproval,
                 autonomous = runApproval.startedAutonomous,
@@ -885,7 +924,9 @@ class TaskRun(
                 skills = catalog,
                 memory = memory,
                 interaction = service.interaction(conversationId, channelPeer),
+                pendingAsks = (service.application as MikaApp).pendingAsks,
                 profileSnapshot = profileSnapshot,
+                rules = com.wangzan101.mika.settings.ActionRulesStore.get(service).current(),
                 streamReplies = true,
                 userScreens = userScreens,
                 // 同一网站、App 里连着联系别人、提交:两次之间隔一段随机的时间
@@ -992,7 +1033,13 @@ class TaskRun(
                     service.refreshNotifications(this@TaskRun)
                 }
             }
-            val end = withContext(tally) { agent.run(runSpec, inbox) }
+            val end = withContext(tally + RoutineTokenCap(TriggerRuntime.tokenCapForWindow(service, triggerWindowKey))) {
+                val stopMs = TriggerRuntime.stopMinutesForWindow(service, triggerWindowKey)?.times(60_000L)
+                if (stopMs != null && stopMs > 0) {
+                    kotlinx.coroutines.withTimeoutOrNull(stopMs) { agent.run(runSpec, inbox) }
+                        ?: TaskState.Failed(tr(R.string.routine_stopped_time), FailKind.StepLimit)
+                } else agent.run(runSpec, inbox)
+            }
             resultReadyAtMs = SystemClock.elapsedRealtime()
             return end.also { usedGroups = agent.usedGroups.toList() }.let(::withRetestHint)
         } finally {

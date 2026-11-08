@@ -46,6 +46,8 @@ internal class ToolConfig(
     val runRecords: com.wangzan101.mika.core.record.RunRecords? = null,
     /** 用户配置并启用的网页搜索;为空时不提供 web_search。 */
     val webSearch: com.wangzan101.mika.core.search.WebSearch? = null,
+    /** 非空时 web_search 查询不得带上这段原文以外的、记忆里的邮箱或电话；失败也不提示改用浏览器。 */
+    val searchAllowText: String? = null,
 )
 
 /**

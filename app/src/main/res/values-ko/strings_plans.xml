@@ -47,4 +47,25 @@
     <string name="plans_running_now">실행 중</string>
     <string name="trigger_deleted">예약 작업이 삭제되었어요</string>
     <string name="trigger_busy">이 작업이 아직 실행 중이에요</string>
+    <string name="plans_kind_manual">자주 쓰는 말</string>
+    <string name="plans_kind_share">공유</string>
+    <string name="plans_share_text">텍스트</string>
+    <string name="plans_share_image">이미지</string>
+    <string name="plans_new_phrase">자주 쓰는 말 추가</string>
+    <string name="plans_new_share">공유 루틴 추가</string>
+    <string name="plans_name_label">이름</string>
+    <string name="plans_goal_label">할 일</string>
+    <string name="plans_share_accepts">받는 종류</string>
+    <string name="plans_need_name">이름을 입력하세요</string>
+    <string name="plans_need_goal">할 일을 입력하세요</string>
+    <string name="plans_need_share_type">텍스트나 이미지를 고르세요</string>
+    <string name="plans_create">만들기</string>
+    <string name="plans_enabled">사용</string>
+    <string name="plans_new_watch">이 페이지 보기</string>
+    <string name="plans_watch_url">페이지 URL</string>
+    <string name="plans_watch_expect">기다릴 변화</string>
+    <string name="plans_need_watch_url">http(s) 주소를 입력하세요</string>
+    <string name="plans_need_watch_expect">기다릴 변화를 입력하세요</string>
+    <string name="plans_edit_topics">관심사</string>
+    <string name="plans_topics_hint">한 줄에 하나</string>
 </resources>

@@ -6,10 +6,21 @@ import com.wangzan101.mika.core.model.Role
 import com.wangzan101.mika.core.model.StopReason
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.record.RunSink
+import com.wangzan101.mika.core.run.Attendance
+import com.wangzan101.mika.core.run.Delivery
+import com.wangzan101.mika.core.run.DeliveryState
+import com.wangzan101.mika.core.run.Interaction
+import com.wangzan101.mika.core.run.MemoryPendingAskStore
+import com.wangzan101.mika.core.run.RunId
+import com.wangzan101.mika.core.run.RunInbox
+import com.wangzan101.mika.core.run.RunOrigin
+import com.wangzan101.mika.core.run.RunProvenance
+import com.wangzan101.mika.core.run.RunSpec
 import com.wangzan101.mika.core.tool.FakeScreen
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -136,6 +147,65 @@ class AgentLoopInputTest {
         run.await()
         assertFalse(sink.events.toString(), "834921" in sink.events.toString())
         assertTrue(sink.events.any { it is RunEvent.ToolResult && it.tool == "ask_user" })
+    }
+
+    @Test fun unattendedAskDeliversThenNoAnswerWithoutWaiting() = runTest {
+        val published = mutableListOf<Delivery.Ask>()
+        var resolved = 0
+        val pending = MemoryPendingAskStore()
+        val spec = RunSpec(RunId("g"), "t", "thread-g", provenance = RunProvenance(RunOrigin.Trigger, Attendance.Unattended))
+        val c = ask()
+        val m = FakeModel(tools(c), finish())
+        val l = AgentLoop(
+            m, toolDispatcher(FakeScreen(), runSpec = spec), "BASE",
+            interaction = object : Interaction {
+                override suspend fun publish(ask: Delivery.Ask): DeliveryState { published += ask; return DeliveryState.Delivered }
+                override fun resolved(askId: String) { resolved++ }
+            },
+            pendingAsks = pending,
+        )
+        val start = currentTime
+        com.wangzan101.mika.core.testing.assertAnswered(DONE, l.run(spec, RunInbox()))
+        assertEquals("unattended ask_user must not wait", start, currentTime)
+        assertEquals(1, published.size)
+        assertEquals("发给哪个张伟?", published.single().text)
+        assertEquals(listOf("同事张伟", "同学张伟"), published.single().options)
+        assertEquals(0, resolved)
+        val stored = pending.get("thread-g")!!
+        assertEquals("发给哪个张伟?", stored.prompt)
+        assertEquals(listOf("同事张伟", "同学张伟"), stored.options)
+        val r = m.resultFor(c)
+        assertEquals("false", r.s("ok")); assertEquals("no_answer", r.s("error"))
+        assertNull(r["answer"])
+    }
+
+    @Test fun attendedAnswerClearsPendingAsk() = runTest {
+        val pending = MemoryPendingAskStore()
+        val c = ask()
+        val m = FakeModel(tools(c), finish())
+        val l = AgentLoop(m, toolDispatcher(FakeScreen()), "BASE", pendingAsks = pending)
+        val run = async { l.run("t") }
+        runCurrent()
+        assertEquals("发给哪个张伟?", pending.get("local")?.prompt)
+        assertTrue(l.answerInput("同事张伟"))
+        run.await()
+        assertNull(pending.get("local"))
+        assertEquals("同事张伟", m.resultFor(c).s("answer"))
+    }
+
+    @Test fun attendedTimeoutClearsPendingAsk() = runTest {
+        val pending = MemoryPendingAskStore()
+        val c = ask()
+        val m = FakeModel(tools(c), finish())
+        val l = AgentLoop(m, toolDispatcher(FakeScreen()), "BASE", inputTimeoutMs = 60_000, pendingAsks = pending)
+        val run = async { l.run("t") }
+        runCurrent()
+        assertEquals("发给哪个张伟?", pending.get("local")?.prompt)
+        advanceTimeBy(61_000); runCurrent()
+        run.await()
+        assertNull(pending.get("local"))
+        assertEquals("no_answer", m.resultFor(c).s("error"))
+        assertNull(m.resultFor(c)["answer"])
     }
 
 }

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_title">اليوم</string>
+    <string name="drawer_today">اليوم</string>
+    <string name="today_next_event">الحدث التالي</string>
+    <string name="today_next_alarm">المنبّه التالي</string>
+    <string name="today_waiting">بانتظارك</string>
+    <string name="today_routines">روتين اليوم</string>
+    <string name="today_empty">فارغ</string>
+    <string name="today_status_upcoming">لم يحن بعد</string>
+    <string name="today_status_unchanged">بلا تغيير</string>
+    <string name="today_status_done">تم</string>
+    <string name="today_status_failed">لم يكتمل</string>
+    <string name="today_status_quiet">مؤجّل حتى انتهاء ساعات الهدوء</string>
+    <string name="today_status_disabled">متوقف</string>
+    <string name="today_status_recorded">مُسجَّل</string>
+    <string name="today_folded">طُوي %1$d مرات</string>
+    <string name="today_no_alarm">لا يوجد منبّه تالٍ</string>
+    <string name="today_no_event">لا يوجد حدث قادم</string>
+    <string name="today_search">ابحث في الأهداف والنتائج والملفات</string>
+    <string name="today_search_empty">لا نتائج</string>
+    <string name="today_unwatched">توقفت لأن أحداً لم ينظر</string>
+</resources>

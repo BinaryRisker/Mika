@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_title">Hari ini</string>
+    <string name="drawer_today">Hari ini</string>
+    <string name="today_next_event">Acara berikutnya</string>
+    <string name="today_next_alarm">Alarm berikutnya</string>
+    <string name="today_waiting">Menunggu Anda</string>
+    <string name="today_routines">Rutin hari ini</string>
+    <string name="today_empty">Kosong</string>
+    <string name="today_status_upcoming">Belum</string>
+    <string name="today_status_unchanged">Tidak berubah</string>
+    <string name="today_status_done">Selesai</string>
+    <string name="today_status_failed">Tidak selesai</string>
+    <string name="today_status_quiet">Ditunda sampai jam senyap berakhir</string>
+    <string name="today_status_disabled">Nonaktif</string>
+    <string name="today_status_recorded">Tercatat</string>
+    <string name="today_folded">Dilipat %1$d kali</string>
+    <string name="today_no_alarm">Tidak ada alarm berikutnya</string>
+    <string name="today_no_event">Tidak ada acara berikutnya</string>
+    <string name="today_search">Cari tujuan, hasil, file</string>
+    <string name="today_search_empty">Tidak ada</string>
+    <string name="today_unwatched">Dijeda karena tidak dibuka</string>
+</resources>

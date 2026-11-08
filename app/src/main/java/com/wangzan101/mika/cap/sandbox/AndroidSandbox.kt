@@ -118,8 +118,14 @@ class AndroidSandbox internal constructor(
 
     constructor(context: Context, state: SandboxState, onShared: (SharedFile) -> Unit = {}) : this(
         SandboxDirs(context), { state.status.value }, { dns(context) }, bridges = true, version = versionOf(context),
-        exporter = ShareExporter(context)::export, onShared = onShared, sync = { SkillsSync.sync(SandboxDirs(context)) { state.status.value is SandboxStatus.Ready } },
-        skillFiles = { SkillsSync.bundled },
+        exporter = ShareExporter(context)::export, onShared = onShared,
+        sync = {
+            val dirs = SandboxDirs(context)
+            SkillsSync.sync(dirs, SkillsSync.bundled + com.wangzan101.mika.pack.PackStore.scriptFiles(context)) {
+                state.status.value is SandboxStatus.Ready
+            }
+        },
+        skillFiles = { SkillsSync.bundled + com.wangzan101.mika.pack.PackStore.scriptFiles(context) },
         startPreparing = { RuntimePreparer.ensure(context, retryFailed = true) },
         allowNetwork = { state.networkAllowed },
         proxy = { NetProxyStore.get(context).get() },

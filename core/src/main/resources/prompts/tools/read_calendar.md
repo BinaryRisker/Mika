@@ -1,0 +1,1 @@
+Read today's and tomorrow's events from the phone's system calendar: title, start, end, all-day, location, and calendar name. Do not expect attendee emails. If the user has not granted calendar access, the result is unauthorized with how to open system settings; it never includes event bodies then. This tool does not create or change events.

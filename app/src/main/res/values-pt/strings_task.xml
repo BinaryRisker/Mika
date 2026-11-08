@@ -84,4 +84,5 @@
     <string name="screens_waiting">Aguardando</string>
     <string name="screens_needs_you">Precisa de você</string>
     <string name="screens_zoom">Ampliar esta tela</string>
+    <string name="routine_stopped_time">Parada: esta rotina ultrapassou o limite de tempo</string>
 </resources>

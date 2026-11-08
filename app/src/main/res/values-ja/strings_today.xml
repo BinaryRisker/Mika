@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_title">今日</string>
+    <string name="drawer_today">今日</string>
+    <string name="today_next_event">次の予定</string>
+    <string name="today_next_alarm">次のアラーム</string>
+    <string name="today_waiting">あなたの対応を待っています</string>
+    <string name="today_routines">今日のルーチン</string>
+    <string name="today_empty">なし</string>
+    <string name="today_status_upcoming">まだ</string>
+    <string name="today_status_unchanged">変化なし</string>
+    <string name="today_status_done">完了</string>
+    <string name="today_status_failed">未完了</string>
+    <string name="today_status_quiet">サイレント時間が終わるまで延期</string>
+    <string name="today_status_disabled">オフ</string>
+    <string name="today_status_recorded">記録済み</string>
+    <string name="today_folded">%1$d 回まとめました</string>
+    <string name="today_no_alarm">次のアラームはありません</string>
+    <string name="today_no_event">次の予定はありません</string>
+    <string name="today_search">目標・結果・ファイル名を検索</string>
+    <string name="today_search_empty">見つかりません</string>
+    <string name="today_unwatched">見ていないので止めました</string>
+</resources>

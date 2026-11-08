@@ -33,6 +33,7 @@ import com.wangzan101.mika.core.tool.OutputClip
 import com.wangzan101.mika.core.workspace.GatedFile
 import com.wangzan101.mika.core.workspace.SandboxError
 import com.wangzan101.mika.core.knowledge.ScriptManifest
+import com.wangzan101.mika.core.pack.PackPath
 import com.wangzan101.mika.core.workspace.WorkspaceFileGate
 import com.wangzan101.mika.core.workspace.SandboxPaths
 
@@ -158,7 +159,8 @@ internal class SandboxTools(
         val script = a.str("script", max = 500)!!
         val args = scriptArgs(a.o["args"])
         val timeout = a.int("timeoutSec", 1, 600) ?: DEFAULT_TIMEOUT_SEC
-        val skillDir = SandboxPaths.normalize(source, SandboxPaths.SKILLS)?.takeIf { it.startsWith("${SandboxPaths.SKILLS}/") }
+        val skillDir = packSkillDir(source)
+            ?: SandboxPaths.normalize(source, SandboxPaths.SKILLS)?.takeIf { it.startsWith("${SandboxPaths.SKILLS}/") }
             ?: return unavailable("source must be a directory under ${SandboxPaths.SKILLS}, e.g. skills/documents.")
         val path = SandboxPaths.normalize(script, skillDir)?.takeIf { it.startsWith("$skillDir/") }
             ?: return unavailable("script must be a path inside the source directory, e.g. scripts/tool.py.")
@@ -169,7 +171,11 @@ internal class SandboxTools(
         // 清单的 file 写技能目录下的路径;只写了文件名(相对 scripts/)的也认
         // 先把技能目录核对成打包的那份:App 更新带来的新脚本立刻可用,被改过的换回原样
         sandbox.prepare()
-        val entry = sandbox.scriptManifest(skillRel).firstOrNull { it.file == rel || "scripts/${it.file}" == rel }
+        val listed = sandbox.scriptManifest(skillRel)
+        if (source.startsWith("pack:") && listed.isEmpty()) {
+            return unavailable("the pack script is missing; this routine cannot run commands from outside the pack.")
+        }
+        val entry = listed.firstOrNull { it.file == rel || "scripts/${it.file}" == rel }
             ?: return unavailable("$rel is not listed as a runnable script of $skillRel (knowledge_read or skill_read lists its scripts).")
         val (runnable, why) = ScriptManifest.effectiveRunnable(entry, network)
         if (!runnable) return unavailable("$rel is not runnable now: $why.")
@@ -208,6 +214,13 @@ internal class SandboxTools(
             if (p == null || !p.isString || p.content.length > 10_000) throw ArgError("args", "items must be strings up to 10000 characters")
             p.content
         }
+    }
+
+    private fun packSkillDir(source: String): String? {
+        if (!source.startsWith("pack:")) return null
+        val id = source.removePrefix("pack:")
+        if (!PackPath.packId(id)) return null
+        return "${SandboxPaths.SKILLS}/pack/$id"
     }
 
     private fun storageLow(): ToolExecution? =

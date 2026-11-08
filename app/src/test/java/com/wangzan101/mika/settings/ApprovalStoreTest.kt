@@ -2,7 +2,6 @@ package com.wangzan101.mika.settings
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -39,7 +38,7 @@ class ApprovalStoreTest {
         assertFalse(ApprovalStore(f).autonomous.value)
     }
 
-    @Test fun runsInAskHaveAGateAndRunsInAutonomousDoNot() {
+    @Test fun runsInAskAndAutonomousBothHaveAGate() {
         val c = control()
         val ask = c.start()
         assertFalse(ask.startedAutonomous)
@@ -49,7 +48,8 @@ class ApprovalStoreTest {
         val auto = c.start()
         assertTrue(auto.startedAutonomous)
         assertTrue(auto.autonomous())
-        assertNull(auto.gate())
+        // 自主仍有关卡:没在允许名单里的发送要走原来的卡片。付款由 autonomous 放行。
+        assertNotNull(auto.gate())
     }
 
     @Test fun remoteRunsAlwaysAskAndIgnoreTheSwitch() {

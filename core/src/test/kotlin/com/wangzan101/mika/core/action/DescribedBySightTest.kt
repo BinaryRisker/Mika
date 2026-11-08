@@ -75,12 +75,14 @@ class DescribedBySightTest {
     }
 
     @Test fun boxFoundOnASendButtonIsUsedWithoutAsking() = runTest {
-        // 判过不可逆:是发送,不花钱,不先问
+        // 看图认出是发送:人在场时要这一次同意,这一步不打字
         val screen = Blind()
         val vision = model("""{"bbox_2d":[800,880,999,940],"seen":"发送"}""", "是")
         val o = type(executor(screen, vision), """{"element":"右下角的框","text":"明天见"}""")
-        assertTrue("$o", o is ActionOutcome.Ran)
-        assertTrue(screen.calls.isNotEmpty())
+        o as ActionOutcome.Refused
+        assertEquals("confirmation_required", o.code)
+        assertEquals(com.wangzan101.mika.core.risk.IrrevAction.send, o.hit?.action)
+        assertTrue(screen.calls.isEmpty())
     }
 
     @Test fun readableTreeWithoutAMatchDoesNotLookBySight() = runTest {

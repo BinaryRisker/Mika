@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_title">Сегодня</string>
+    <string name="drawer_today">Сегодня</string>
+    <string name="today_next_event">Следующее событие</string>
+    <string name="today_next_alarm">Следующий будильник</string>
+    <string name="today_waiting">Ждёт вас</string>
+    <string name="today_routines">Сегодняшние процедуры</string>
+    <string name="today_empty">Пусто</string>
+    <string name="today_status_upcoming">Ещё нет</string>
+    <string name="today_status_unchanged">Без изменений</string>
+    <string name="today_status_done">Готово</string>
+    <string name="today_status_failed">Не завершено</string>
+    <string name="today_status_quiet">Отложено до конца тихого режима</string>
+    <string name="today_status_disabled">Выкл.</string>
+    <string name="today_status_recorded">Записано</string>
+    <string name="today_folded">Свёрнуто %1$d раз</string>
+    <string name="today_no_alarm">Нет следующего будильника</string>
+    <string name="today_no_event">Нет предстоящих событий</string>
+    <string name="today_search">Искать цели, итоги, файлы</string>
+    <string name="today_search_empty">Ничего не найдено</string>
+    <string name="today_unwatched">Остановлено: никто не смотрел</string>
+</resources>

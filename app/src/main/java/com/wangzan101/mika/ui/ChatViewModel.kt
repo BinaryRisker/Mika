@@ -28,6 +28,7 @@ import com.wangzan101.mika.core.memory.MemoryItem
 import com.wangzan101.mika.core.memory.MemoryNote
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.skills.SkillNote
+import com.wangzan101.mika.core.trigger.ShareMatch
 import com.wangzan101.mika.memory.RunNotes
 import com.wangzan101.mika.settings.Prerequisites
 import com.wangzan101.mika.settings.Problem
@@ -127,7 +128,7 @@ sealed interface ExchangeStatus {
         val reason: String, val message: String,
         val item: String? = null, val amount: String? = null, val address: String? = null,
     ) : ExchangeStatus
-    data class NeedsInput(val prompt: String, val options: List<String>?) : ExchangeStatus
+    data class NeedsInput(val prompt: String, val options: List<String>?, val liveWait: Boolean = true) : ExchangeStatus
     /**
      * 等用户同意一次要花钱的操作(只能同意这一次);[title]「要你同意:<动作>」,[body] 一行一个字段(App、对象、完整内容、金额)。
      * [key] 是这次申报的编号,按钮带着它,点在旧卡片上不算数。
@@ -396,6 +397,9 @@ class ChatViewModel(
     private val sharedDraftUri: (String) -> String = { it },
     /** 读写对话记录、复制分支在哪儿做。 */
     private val io: CoroutineContext = Dispatchers.IO,
+    /** 还没答上的追问;人不在或进程被杀后仍显示在原对话。 */
+    private val pendingAsks: StateFlow<List<com.wangzan101.mika.core.run.PendingAsk>> = MutableStateFlow(emptyList()),
+    private val takePendingAsk: (String) -> com.wangzan101.mika.core.run.PendingAsk? = { null },
 ) {
     /** 用户在对话页上关掉留在后台的那一页。 */
     fun closeKeptPage() = closeKept()
@@ -512,6 +516,7 @@ class ChatViewModel(
         // 任务登记进任务列表(原话可以取了)可能晚于它的第一个状态:那时接上的那一问一答补上原话
         scope.launch { activeConversations.collect { fillGoal() } }
         scope.launch { summarizing.collect { set -> _ui.update { ui -> ui.copy(exchanges = ui.exchanges.map { withSummarizing(it, set) }) } } }
+        scope.launch { pendingAsks.collect { _ui.value.conversationId?.let(::syncSaved) } }
         // 进程重建:只恢复仍对应当前对话的分享草稿。没有匹配时不抢占正在恢复的别的任务。
         val draft = sharedDrafts?.read()
         if (draft != null) {
@@ -713,6 +718,26 @@ class ChatViewModel(
     }
 
     fun clearQuote() = _ui.update { it.copy(quote = null) }
+
+    /**
+     * 选定一条分享常规之后才开始：目标是常规原话加上这份草稿正文，附件仍走现有导入。
+     * 没有草稿或任务已经在跑时不开始。
+     */
+    fun startShareRoutine(routineGoal: String, check: Prerequisites.Check): Boolean {
+        refreshParallel()
+        val ui = _ui.value
+        val draft = ui.sharedDraft ?: return false
+        if (ui.composer != ComposerMode.Idle || ui.importing) return false
+        val goal = ShareMatch.composeGoal(routineGoal, draft.text)
+        if (ui.attachments.isNotEmpty()) return sendWithAttachments(goal, ui.attachments, check)
+        if (goal.isEmpty()) return false
+        if (!check.canStartTask) {
+            _ui.update { it.copy(blocked = check.blockers) }
+            return false
+        }
+        begin(goal, ui.conversationId ?: store.newConversation())
+        return true
+    }
 
     /** 发送输入框里的话;有引用时引用写在话的前面(见 [QuoteMessage]),发出去后清掉。返回 false 表示没发出去(条件不满足,或任务在跑)。 */
     fun send(text: String, check: Prerequisites.Check): Boolean {
@@ -960,7 +985,7 @@ class ChatViewModel(
         val past = saved(conversationId)
         liveIndex = -1
         // 没有任务的对话不带别的任务的接管进度
-        _ui.update { ChatUi(conversationId = conversationId, exchanges = past, takeoverStage = Takeover.Stage.None) }
+        _ui.update { ChatUi(conversationId = conversationId, exchanges = past, takeoverStage = Takeover.Stage.None, composer = composerFor(past)) }
         markCurrent(CurrentChat.Open(conversationId))
         if (conversationId !in activeConversations.value) { unpark(conversationId); actions.drainFollowUps(conversationId); return }
         follow(conversationId, unpark(conversationId))
@@ -1012,8 +1037,21 @@ class ChatViewModel(
     }
 
     /** 这个对话存下的轮次,连同各轮导出的文件和此刻的记忆与技能提示。 */
-    private fun saved(conversationId: String): List<Exchange> =
-        runCatching { store.records(conversationId) }.getOrDefault(emptyList()).map { (t, files) -> withSummarizing(withNotes(fromTurn(t).copy(files = files), runNotes.value)) }
+    private fun saved(conversationId: String): List<Exchange> {
+        val past = runCatching { store.records(conversationId) }.getOrDefault(emptyList()).map { (t, files) -> withSummarizing(withNotes(fromTurn(t).copy(files = files), runNotes.value)) }
+        return withPendingAsk(conversationId, past)
+    }
+
+    private fun withPendingAsk(conversationId: String, exchanges: List<Exchange>): List<Exchange> {
+        if (exchanges.any { it.status is ExchangeStatus.NeedsInput }) return exchanges
+        val ask = pendingAsks.value.firstOrNull { it.threadId == conversationId } ?: return exchanges
+        return exchanges + Exchange(
+            "", emptyList(), ExchangeStatus.NeedsInput(ask.prompt, ask.options.takeIf { it.isNotEmpty() }, liveWait = false), live = false,
+        )
+    }
+
+    private fun composerFor(exchanges: List<Exchange>): ComposerMode =
+        if (exchanges.lastOrNull()?.status is ExchangeStatus.NeedsInput) ComposerMode.Answer else ComposerMode.Idle
 
     /**
      * 存储里这个对话变了(别处跑完存进一轮、改了某一轮):屏上按存下的那份重排。这里跟过的那几轮按运行编号认
@@ -1039,7 +1077,7 @@ class ChatViewModel(
             val exchanges = merged + tracked + listOfNotNull(live)
             if (exchanges == ui.exchanges) return@update ui
             liveIndex = if (live != null) exchanges.lastIndex else -1
-            ui.copy(exchanges = exchanges)
+            ui.copy(exchanges = exchanges, composer = if (live != null) ui.composer else composerFor(exchanges))
         }
     }
 
@@ -1079,7 +1117,23 @@ class ChatViewModel(
     fun handBack() = act({ actions.handBack() }) { actions.handBackIn(it) }
     fun finishedMyself() = act({ actions.finishedMyself() }) { actions.finishedMyselfIn(it) }
     fun skip() = act({ actions.skip() }) { actions.skipIn(it) }
-    fun answer(text: String) = act({ actions.answer(text) }) { actions.answerIn(it, text) }
+    fun answer(text: String) {
+        val id = _ui.value.conversationId
+        val liveWait = _ui.value.exchanges.getOrNull(liveIndex)?.status is ExchangeStatus.NeedsInput
+        if (!liveWait && id != null) {
+            val ask = takePendingAsk(id)
+            if (ask != null) {
+                val goal = com.wangzan101.mika.task.asReply(ask, text)
+                if (id in activeConversations.value) {
+                    actions.enqueueFollowUp(id, java.util.UUID.randomUUID().toString(), goal)
+                } else {
+                    actions.start(goal, id)
+                }
+                return
+            }
+        }
+        act({ actions.answer(text) }) { actions.answerIn(it, text) }
+    }
     fun approve(key: Int) = act({ actions.approve(key) }) { actions.approveIn(it, key) }
     fun decline(key: Int) = act({ actions.decline(key) }) { actions.declineIn(it, key) }
 

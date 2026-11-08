@@ -87,4 +87,5 @@
     <string name="screens_waiting">Ожидание</string>
     <string name="screens_needs_you">Нужны вы</string>
     <string name="screens_zoom">Увеличить этот экран</string>
+    <string name="routine_stopped_time">Остановлено: эта процедура превысила лимит времени</string>
 </resources>

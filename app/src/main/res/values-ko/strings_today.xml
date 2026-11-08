@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="today_title">오늘</string>
+    <string name="drawer_today">오늘</string>
+    <string name="today_next_event">다음 일정</string>
+    <string name="today_next_alarm">다음 알람</string>
+    <string name="today_waiting">내 차례를 기다리는 중</string>
+    <string name="today_routines">오늘의 루틴</string>
+    <string name="today_empty">없음</string>
+    <string name="today_status_upcoming">아직</string>
+    <string name="today_status_unchanged">변화 없음</string>
+    <string name="today_status_done">완료</string>
+    <string name="today_status_failed">끝나지 않음</string>
+    <string name="today_status_quiet">방해 금지 시간이 끝날 때까지 연기됨</string>
+    <string name="today_status_disabled">꺼짐</string>
+    <string name="today_status_recorded">기록됨</string>
+    <string name="today_folded">접힘 %1$d회</string>
+    <string name="today_no_alarm">다음 알람 없음</string>
+    <string name="today_no_event">다가오는 일정 없음</string>
+    <string name="today_search">목표, 결과, 파일 이름 검색</string>
+    <string name="today_search_empty">없음</string>
+    <string name="today_unwatched">아무도 보지 않아 멈춤</string>
+</resources>

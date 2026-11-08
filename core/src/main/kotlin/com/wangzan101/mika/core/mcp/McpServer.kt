@@ -46,9 +46,10 @@ class McpToolSession internal constructor(
     private var step = 0
     private var closed = false
     private val offered = tools.definitions().map { it.name }.toSet()
+    // 电脑交来的调用不按自主放行:付款仍问不到人,发送和删除留草稿。
     private val executor = ActionExecutor(tools, OperationGuards(), null, gate = {},
         recorder = ActionRecorder(events, clock), offScreen = tools.offScreenGuard(), approvals = approvals,
-        provenance = spec.provenance, autonomous = true)
+        provenance = spec.provenance, autonomous = false)
 
     init {
         store.save(StoredRun(spec.id, spec.threadId, spec.goal, RunPhase.Running, roundInProgress = true))

@@ -595,6 +595,51 @@ class ChatViewModelTest {
         assertFalse(drafts.imageFile("shared.jpg")!!.exists())
     }
 
+    @Test fun startShareRoutinePutsShareIntoGoalAndStarts() = runTest {
+        val conversations = ConversationStore(tmp.newFolder())
+        val drafts = SharedDraftStore(tmp.newFolder())
+        val vm = ChatViewModel(backgroundScope, state, stage, actions, conversations, sharedDrafts = drafts)
+        runCurrent()
+        assertTrue(vm.openSharedDraft(SharedDraft("", "https://example.com")))
+        assertTrue(calls.isEmpty())
+        assertTrue(vm.startShareRoutine("存到笔记", ok))
+        assertEquals(listOf("start:存到笔记\n\nhttps://example.com"), calls)
+        assertNull(drafts.read())
+    }
+
+    @Test fun startShareRoutineWithoutDraftDoesNotStart() = runTest {
+        val conversations = ConversationStore(tmp.newFolder())
+        val vm = ChatViewModel(backgroundScope, state, stage, actions, conversations)
+        runCurrent()
+        assertFalse(vm.startShareRoutine("存到笔记", ok))
+        assertTrue(calls.isEmpty())
+    }
+
+    @Test fun startShareRoutineImageUsesAttachmentImport() = runTest {
+        val conversations = ConversationStore(tmp.newFolder())
+        val drafts = SharedDraftStore(tmp.newFolder())
+        drafts.imageFile("shared.jpg")!!.writeBytes(byteArrayOf(1, 2, 3))
+        val imported = mutableListOf<List<String>>()
+        val vm = ChatViewModel(
+            backgroundScope, state, stage, actions, conversations,
+            sharedDrafts = drafts,
+            sharedDraftUri = { "content://mika.shared/$it" },
+            importAttachments = { _, uris ->
+                imported += uris
+                com.wangzan101.mika.cap.sandbox.ImportResult(listOf("/workspace/inbox/shared.jpg" to 3L), emptyList())
+            },
+        )
+        runCurrent()
+        val image = com.wangzan101.mika.chat.SharedDraftImage("shared.jpg", "photo.jpg", 3)
+        assertTrue(vm.openSharedDraft(SharedDraft("", "说明这张图", image)))
+        assertTrue(calls.isEmpty())
+        assertTrue(vm.startShareRoutine("存图", ok))
+        runCurrent()
+        assertEquals(listOf(listOf("content://mika.shared/shared.jpg")), imported)
+        assertEquals(listOf("start:存图\n\n说明这张图\n附件:/workspace/inbox/shared.jpg(3 B)"), calls)
+        assertNull(drafts.read())
+    }
+
     @Test fun olderAttachmentImportCannotClearANewerSharedDraft() = runTest {
         val conversations = ConversationStore(tmp.newFolder())
         val drafts = SharedDraftStore(tmp.newFolder())
@@ -2482,5 +2527,34 @@ class ChatViewModelTest {
 
         assertTrue(vm.send("新一句", ok))
         assertNull(vm.branchBefore(0))
+    }
+
+    @Test fun pendingAskShowsInConversationAndAnswerStartsNewRun() = runTest {
+        val conversations = ConversationStore(tmp.newFolder())
+        val id = conversations.newConversation()
+        conversations.append(id, Turn("夜里常规", "问你一句", "succeeded"))
+        val pending = MutableStateFlow(listOf(
+            com.wangzan101.mika.core.run.PendingAsk("a1", id, "发给哪个张伟?", listOf("同事张伟", "同学张伟"), 1L),
+        ))
+        var taken: com.wangzan101.mika.core.run.PendingAsk? = null
+        val vm = ChatViewModel(
+            backgroundScope, state, stage, actions, conversations,
+            pendingAsks = pending,
+            takePendingAsk = { thread ->
+                taken = pending.value.firstOrNull { it.threadId == thread }
+                pending.value = pending.value.filterNot { it.threadId == thread }
+                taken
+            },
+        ).also { runCurrent() }
+        vm.switchTo(id)
+        runCurrent()
+        val last = vm.ui.value.exchanges.last()
+        assertEquals(ExchangeStatus.NeedsInput("发给哪个张伟?", listOf("同事张伟", "同学张伟"), liveWait = false), last.status)
+        assertEquals(ComposerMode.Answer, vm.ui.value.composer)
+        vm.answer("同事张伟")
+        runCurrent()
+        assertEquals("发给哪个张伟?", taken?.prompt)
+        assertTrue(calls.any { it.startsWith("start:") && "同事张伟" in it && "发给哪个张伟?" in it })
+        assertTrue(pending.value.isEmpty())
     }
 }

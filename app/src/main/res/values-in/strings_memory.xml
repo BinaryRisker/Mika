@@ -88,4 +88,25 @@
     <string name="skills_imported">Diimpor</string>
     <string name="skill_builtin_name">Sudah ada keterampilan bawaan dengan nama ini. Ganti namanya lalu coba lagi.</string>
     <string name="skill_draft_pending">Draf dengan nama ini masih menunggu ditinjau. Selesaikan yang itu dulu.</string>
+    <string name="packs_title">Paket</string>
+    <string name="packs_sub">Pasang keterampilan, skrip, dan rutinitas sekaligus</string>
+    <string name="backup_export">Ekspor</string>
+    <string name="backup_export_sub">Salinan terenkripsi memori, keterampilan, paket, dan rutinitas. Tanpa kunci API.</string>
+    <string name="packs_import">Pasang paket</string>
+    <string name="packs_uninstall">Lepas %1$s</string>
+    <string name="packs_uninstall_title">Rutinitas aktif dari paket ini</string>
+    <string name="packs_keep_routines">Biarkan menyala</string>
+    <string name="packs_stop_routines">Matikan</string>
+    <string name="packs_installed">Terpasang %1$s</string>
+    <string name="packs_rejected">Paket tidak dipasang (%1$s)</string>
+    <string name="packs_removed">Paket dilepas</string>
+    <string name="backup_import">Impor</string>
+    <string name="backup_password">Kata sandi</string>
+    <string name="backup_password_hint">Hanya untuk berkas ini. Mika tidak menyimpannya.</string>
+    <string name="backup_preview">%1$d memori, %2$d keterampilan, %3$d paket, %4$d rutinitas, %5$d izin, %6$d larangan. Rutinitas masuk dalam keadaan mati dan daftar akan diganti.</string>
+    <string name="backup_import_confirm">Impor</string>
+    <string name="backup_saved">Diekspor</string>
+    <string name="backup_imported">Diimpor. Rutinitas mati.</string>
+    <string name="backup_failed">Berkas ini tidak bisa dibaca atau ditulis</string>
+    <string name="backup_bad_password">Kata sandi salah</string>
 </resources>

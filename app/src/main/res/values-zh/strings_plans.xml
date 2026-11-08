@@ -47,4 +47,25 @@
     <string name="plans_running_now">执行中</string>
     <string name="trigger_deleted">定时任务已删除</string>
     <string name="trigger_busy">这条任务仍在执行</string>
+    <string name="plans_kind_manual">常用说法</string>
+    <string name="plans_kind_share">分享</string>
+    <string name="plans_share_text">文字</string>
+    <string name="plans_share_image">图片</string>
+    <string name="plans_new_phrase">新建常用说法</string>
+    <string name="plans_new_share">新建分享常规</string>
+    <string name="plans_name_label">名字</string>
+    <string name="plans_goal_label">目标</string>
+    <string name="plans_share_accepts">接受的类型</string>
+    <string name="plans_need_name">请填写名字</string>
+    <string name="plans_need_goal">请填写目标</string>
+    <string name="plans_need_share_type">请选择文字或图片</string>
+    <string name="plans_create">创建</string>
+    <string name="plans_enabled">启用</string>
+    <string name="plans_new_watch">盯这个页面</string>
+    <string name="plans_watch_url">页面网址</string>
+    <string name="plans_watch_expect">要等的变化</string>
+    <string name="plans_need_watch_url">请填写 http(s) 网址</string>
+    <string name="plans_need_watch_expect">请填写要等的变化</string>
+    <string name="plans_edit_topics">关注</string>
+    <string name="plans_topics_hint">每行一条关注</string>
 </resources>

@@ -1,6 +1,8 @@
 package com.wangzan101.mika.task
 
 import com.wangzan101.mika.core.trigger.ConditionNotify
+import com.wangzan101.mika.core.trigger.RoutineKind
+import com.wangzan101.mika.core.trigger.ShareType
 import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.TriggerWindowState
 import com.wangzan101.mika.core.trigger.TriggerSnapshot
@@ -84,5 +86,23 @@ class FileTriggerStoreTest {
         assertEquals("fixed", restored.all().single().id)
         assertEquals(true, File(file.parentFile, sidecar.name + ".corrupt").isFile)
         assertEquals(false, File(file.parentFile, file.name + ".corrupt").exists())
+    }
+
+    @Test fun shareAndManualFieldsSurviveStoreReopenAndStayOutOfMainFile() {
+        val file = Files.createTempDirectory("trigger-test").resolve("triggers.json").toFile()
+        FileTriggerStore(file).upsert(TriggerDefinition(
+            "share", "thread", "存图", 0, enabled = true, displayName = "存图",
+            kind = RoutineKind.Share, shareTypes = listOf(ShareType.Image, ShareType.Text),
+        ))
+        FileTriggerStore(file).upsert(TriggerDefinition(
+            "say", "thread", "总结未读", 0, enabled = true, displayName = "总结未读",
+            kind = RoutineKind.Manual,
+        ))
+        val restored = FileTriggerStore(file)
+        assertEquals(RoutineKind.Share, restored.get("share")!!.kind)
+        assertEquals(listOf(ShareType.Image, ShareType.Text), restored.get("share")!!.shareTypes)
+        assertEquals(RoutineKind.Manual, restored.get("say")!!.kind)
+        assertEquals(false, file.readText().contains("\"kind\""))
+        assertEquals(false, file.readText().contains("shareTypes"))
     }
 }

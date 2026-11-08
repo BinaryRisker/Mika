@@ -175,4 +175,10 @@
     <string name="chat_placeholder_queue">Write the next task…</string>
     <string name="voice_placeholder_queue">Say the next task…</string>
     <string name="steer_received_paused">Got it — it will be used when the task continues</string>
+    <string name="share_pick_title">Choose a routine for this share</string>
+    <string name="share_pick_skip">Not now</string>
+    <string name="worth_prompt_title">Something to watch?</string>
+    <string name="worth_prompt_hint">A short topic</string>
+    <string name="worth_prompt_save">Save</string>
+    <string name="pending_ask_reply">Question: %1$s\nMy answer: %2$s</string>
 </resources>

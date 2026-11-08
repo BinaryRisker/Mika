@@ -88,4 +88,25 @@
     <string name="skills_imported">가져옴</string>
     <string name="skill_builtin_name">같은 이름의 기본 스킬이 있습니다. 이름을 바꿔 다시 시도하세요.</string>
     <string name="skill_draft_pending">같은 이름의 초안이 이미 검토를 기다리고 있습니다. 그것부터 처리하세요.</string>
+    <string name="packs_title">팩</string>
+    <string name="packs_sub">기술, 스크립트, 루틴을 묶어서 설치</string>
+    <string name="backup_export">내보내기</string>
+    <string name="backup_export_sub">기억, 기술, 팩, 루틴의 암호화 복사본. API 키 없음</string>
+    <string name="packs_import">팩 설치</string>
+    <string name="packs_uninstall">%1$s 제거</string>
+    <string name="packs_uninstall_title">이 팩의 사용 중인 루틴</string>
+    <string name="packs_keep_routines">켜 둔 채로 남기기</string>
+    <string name="packs_stop_routines">끄기</string>
+    <string name="packs_installed">%1$s을(를) 설치했습니다</string>
+    <string name="packs_rejected">팩을 설치하지 못했습니다(%1$s)</string>
+    <string name="packs_removed">팩을 제거했습니다</string>
+    <string name="backup_import">가져오기</string>
+    <string name="backup_password">비밀번호</string>
+    <string name="backup_password_hint">이 파일에만 쓰입니다. Mika는 저장하지 않습니다.</string>
+    <string name="backup_preview">기억 %1$d, 기술 %2$d, 팩 %3$d, 루틴 %4$d, 허용 %5$d, 금지 %6$d. 루틴은 꺼진 채로 들어오고 목록은 바뀝니다.</string>
+    <string name="backup_import_confirm">가져오기</string>
+    <string name="backup_saved">내보냈습니다</string>
+    <string name="backup_imported">가져왔습니다. 루틴은 꺼져 있습니다.</string>
+    <string name="backup_failed">이 파일을 처리하지 못했습니다</string>
+    <string name="backup_bad_password">비밀번호가 다릅니다</string>
 </resources>

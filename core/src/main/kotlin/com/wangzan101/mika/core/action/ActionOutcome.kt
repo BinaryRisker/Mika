@@ -89,6 +89,50 @@ internal object Refusals {
         put("executed", false); put("recoverable", false); put("counts_as_failure", false)
     }
 
+    /** 人在场、还没同意的发送或删除。同意只覆盖下一动,这句话和花钱那条一样。 */
+    fun outboundAsk(hit: Irreversible, style: RefusalStyle, before: List<GuardVerdict>): JsonObject {
+        val message = when (hit.action) {
+            IrrevAction.send -> "This send was not run. Call request_confirmation with action send, target set to the name in the title bar, content set to the exact text, and amount as an empty string. $SINGLE_USE"
+            IrrevAction.delete -> "This delete was not run. Call request_confirmation with action delete, target set to what will be deleted, and amount as an empty string. $SINGLE_USE"
+            else -> "This step was not run. $SINGLE_USE"
+        }
+        val body = buildJsonObject {
+            put("ok", false); put("error", "confirmation_required")
+            put("action", hit.action.name); put("matched", hit.matched)
+            put("message", message)
+            put("recoverable", true); put("counts_as_failure", false)
+        }
+        return if (style == RefusalStyle.Model && before.isNotEmpty()) JsonObject(body + ("guard" to JsonArray(before.map { it.toJson() }))) else body
+    }
+
+    /** 人不在场的发送或删除。对话里留下对象、正文,以及「没有发出」或「没有删除」。 */
+    fun draft(hit: Irreversible, target: String, body: String) = buildJsonObject {
+        val notSent = hit.action == IrrevAction.send
+        put("ok", false)
+        put("error", if (notSent) "not_sent" else "not_deleted")
+        put("executed", false)
+        put("draft", true)
+        put("action", hit.action.name)
+        put("matched", hit.matched)
+        put("target", target)
+        put("body", body)
+        put("message", if (notSent) "没有发出" else "没有删除")
+        put("recoverable", false)
+        put("counts_as_failure", false)
+    }
+
+    /** 禁止名单命中。没有确认请求。 */
+    fun packageDenied(hit: Irreversible) = buildJsonObject {
+        put("ok", false)
+        put("error", "package_denied")
+        put("executed", false)
+        put("action", hit.action.name)
+        put("matched", hit.matched)
+        put("message", "This app is not allowed to ${hit.action.name}. The action was not run. No confirmation was requested.")
+        put("recoverable", false)
+        put("counts_as_failure", false)
+    }
+
     private fun required(hit: Irreversible) = buildJsonObject {
         put("ok", false); put("error", "confirmation_required")
         put("action", hit.action.name); put("matched", hit.matched)

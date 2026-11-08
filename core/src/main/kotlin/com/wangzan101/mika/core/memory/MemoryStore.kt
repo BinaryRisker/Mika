@@ -160,6 +160,13 @@ class MemoryStore(
         commit(emptyList())
     }
 
+    /** 导入备份时整份换上；不走单条校验。 */
+    fun replaceAll(items: List<MemoryItem>): Unit = synchronized(lock) {
+        undos.clear()
+        loaded = true
+        commit(items)
+    }
+
     private fun check(content: String, keywords: List<String>, source: MemorySource): MemoryRejected? {
         if (content.isEmpty() || content.length > MAX_CONTENT) return MemoryRejected("too_long")
         val texts = listOf(content) + keywords + listOfNotNull(source.quote)

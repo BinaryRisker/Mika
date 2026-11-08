@@ -88,4 +88,25 @@
     <string name="skills_imported">Импортирован</string>
     <string name="skill_builtin_name">Встроенный навык с таким названием уже есть. Переименуйте и попробуйте снова.</string>
     <string name="skill_draft_pending">Черновик с таким названием уже ждёт проверки. Сначала разберитесь с ним.</string>
+    <string name="packs_title">Пакеты</string>
+    <string name="packs_sub">Установить навыки, скрипты и сценарии вместе</string>
+    <string name="backup_export">Экспорт</string>
+    <string name="backup_export_sub">Зашифрованная копия памяти, навыков, пакетов и сценариев. Без ключей.</string>
+    <string name="packs_import">Установить пакет</string>
+    <string name="packs_uninstall">Удалить %1$s</string>
+    <string name="packs_uninstall_title">Включённые сценарии этого пакета</string>
+    <string name="packs_keep_routines">Оставить включёнными</string>
+    <string name="packs_stop_routines">Выключить</string>
+    <string name="packs_installed">Установлен %1$s</string>
+    <string name="packs_rejected">Пакет не установлен (%1$s)</string>
+    <string name="packs_removed">Пакет удалён</string>
+    <string name="backup_import">Импорт</string>
+    <string name="backup_password">Пароль</string>
+    <string name="backup_password_hint">Только для этого файла. Mika его не сохраняет.</string>
+    <string name="backup_preview">Воспоминаний: %1$d, навыков: %2$d, пакетов: %3$d, сценариев: %4$d, разрешений: %5$d, запретов: %6$d. Сценарии будут выключены, списки заменятся.</string>
+    <string name="backup_import_confirm">Импортировать</string>
+    <string name="backup_saved">Экспортировано</string>
+    <string name="backup_imported">Импортировано. Сценарии выключены.</string>
+    <string name="backup_failed">Не удалось прочитать или записать файл</string>
+    <string name="backup_bad_password">Неверный пароль</string>
 </resources>

@@ -88,4 +88,25 @@
     <string name="skills_imported">Imported</string>
     <string name="skill_builtin_name">A built-in skill already has this name. Rename it and try again.</string>
     <string name="skill_draft_pending">A draft with this name is already waiting for review. Handle that one first.</string>
+    <string name="packs_title">Packs</string>
+    <string name="packs_sub">Install a pack of skills, scripts and routines</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_export_sub">Encrypted copy of memory, skills, packs and routines. No API keys.</string>
+    <string name="packs_import">Install a pack</string>
+    <string name="packs_uninstall">Remove %1$s</string>
+    <string name="packs_uninstall_title">Enabled routines from this pack</string>
+    <string name="packs_keep_routines">Leave them on</string>
+    <string name="packs_stop_routines">Turn them off</string>
+    <string name="packs_installed">Installed %1$s</string>
+    <string name="packs_rejected">Pack not installed (%1$s)</string>
+    <string name="packs_removed">Pack removed</string>
+    <string name="backup_import">Import</string>
+    <string name="backup_password">Password</string>
+    <string name="backup_password_hint">Used only for this file. Mika does not save it.</string>
+    <string name="backup_preview">This file has %1$d memories, %2$d skills, %3$d packs, %4$d routines, %5$d allow-list items, %6$d deny-list items. Routines will be imported turned off. Lists will be replaced.</string>
+    <string name="backup_import_confirm">Import</string>
+    <string name="backup_saved">Exported</string>
+    <string name="backup_imported">Imported. Routines are off.</string>
+    <string name="backup_failed">Could not read or write that file</string>
+    <string name="backup_bad_password">Wrong password</string>
 </resources>

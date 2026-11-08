@@ -100,7 +100,12 @@ class TaskService : Service() {
     private val outbox get() = (application as com.wangzan101.mika.MikaApp).outbox
     private val localChannel by lazy { LocalChannel { _, delivery ->
         if (delivery is Delivery.Ask) {
-            center.byConversation(delivery.threadId)?.let(::refreshNotifications)
+            val run = center.byConversation(delivery.threadId)
+            if (delivery.kind == Delivery.Ask.Kind.Input && run?.state?.value !is TaskState.WaitingInput) {
+                notifyPendingAsk(this, delivery)
+            } else {
+                run?.let(::refreshNotifications)
+            }
             SendOutcome.Delivered
         } else {
             val resultId = if (delivery is Delivery.Result && center.byConversation(delivery.threadId)?.parallel == false) ID_RESULT
@@ -286,7 +291,14 @@ class TaskService : Service() {
             ACTION_ANSWER -> {
                 val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(KEY_REPLY)?.toString()
                     ?: intent.getStringExtra(EXTRA_ANSWER)
-                if (!text.isNullOrBlank()) run?.answer(text.trim(), ::answerTooLate)
+                if (!text.isNullOrBlank()) {
+                    val pendingThread = intent.getStringExtra(EXTRA_CONVERSATION)
+                    if (pendingThread != null && run?.state?.value !is TaskState.WaitingInput) {
+                        startPendingReply(pendingThread, text.trim())
+                    } else {
+                        run?.answer(text.trim(), ::answerTooLate)
+                    }
+                }
             }
             ACTION_CLOSE_KEPT_PAGE -> keeper.close(KeptPageClose.User)
             ACTION_APPROVE, ACTION_DECLINE -> {
@@ -326,6 +338,18 @@ class TaskService : Service() {
         }
         startNew(newGoal, requestedConversation, provenance, triggerKey, triggerActionGoal, triggerThreadId, mcpExternalId,
             triggerCondition = triggerCondition, channelPeer = channelPeer, channelMessageId = channelMessageId)
+    }
+
+    /** 未答问句的回答:同一条对话一次新运行,不把这次回答交给已经结束或还在跑的那一次。 */
+    private fun startPendingReply(conversationId: String, text: String) {
+        val ask = (application as com.wangzan101.mika.MikaApp).pendingAsks.remove(conversationId) ?: return
+        getSystemService(NotificationManager::class.java).cancel(pendingAskNotifyId(conversationId))
+        val goal = ask.asReply(text)
+        if (center.byConversation(conversationId) != null) {
+            queueFollowUp(conversationId, goal, java.util.UUID.randomUUID().toString(), QueuedSource.Explicit)
+        } else {
+            begin(goal, conversationId)
+        }
     }
 
     /**
@@ -469,8 +493,10 @@ class TaskService : Service() {
                 if (outcome is ConditionOutcome.Error) {
                     val failure = TaskState.Failed(tr(R.string.task_check_unfinished, outcome.reason), FailKind.Environment)
                     recordTurn(store, run, failure, run.runId.value)
-                    runCatching { notifyResult(run, failure, "condition:${run.key}") }
-                        .onFailure { Log.w(TAG, "condition failure notification failed", it) }
+                    if (TriggerRuntime.shouldNotify(this@TaskService, run.triggerWindowKey, failure)) {
+                        runCatching { notifyResult(run, failure, "condition:${run.key}") }
+                            .onFailure { Log.w(TAG, "condition failure notification failed", it) }
+                    }
                 }
                 center.markDelivered(run)
                 onRunEnded(run, store)
@@ -485,7 +511,8 @@ class TaskService : Service() {
             val app = applicationContext
             runCatching {
                 RunLearning.launchAfter(MemoryRuntime.of(this@TaskService).scope, {
-                    delivered = notifyResult(run, end, deliveryId) == DeliveryState.Delivered
+                    val notify = TriggerRuntime.shouldNotify(app, run.triggerWindowKey, end)
+                    delivered = if (notify) notifyResult(run, end, deliveryId) == DeliveryState.Delivered else true
                     // 定时任务的结果当场按结局记(和以前一样),判下来没办成再改记;不靠服务一直在
                     if (delivered) run.triggerWindowKey?.let { key ->
                         runCatching {
@@ -922,9 +949,59 @@ class TaskService : Service() {
                 is Delivery.Notice -> nm.notify(nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
                     .setSmallIcon(R.drawable.ic_notification).setContentTitle("Mika")
                     .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true).build())
-                is Delivery.Ask, is Delivery.Progress -> {}
+                is Delivery.Ask -> if (delivery.kind == Delivery.Ask.Kind.Input) notifyPendingAsk(context, delivery)
+                is Delivery.Progress -> {}
             }
             return SendOutcome.Delivered
+        }
+
+        internal fun restorePendingAsks(context: Context) {
+            val app = context.applicationContext as? com.wangzan101.mika.MikaApp ?: return
+            ensureChannels(context)
+            app.pendingAsks.all().forEach { ask ->
+                notifyPendingAsk(context, Delivery.Ask("pending:${ask.askId}", ask.threadId, ask.askId, Delivery.Ask.Kind.Input, ask.prompt, ask.options))
+            }
+        }
+
+        internal fun notifyPendingAsk(context: Context, ask: Delivery.Ask) {
+            ensureChannels(context)
+            val text = buildString {
+                append(ask.text)
+                ask.options.forEach { append('\n').append(it) }
+            }
+            val b = Notification.Builder(context, CHANNEL_ATTENTION)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(tr(R.string.input_title))
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
+                .setCategory(Notification.CATEGORY_REMINDER)
+                .setContentIntent(openApp(context, ask.threadId))
+                .setAutoCancel(true)
+            val reply = RemoteInput.Builder(KEY_REPLY).setLabel(context.getString(R.string.reply_hint))
+                .apply { if (ask.options.isNotEmpty()) setChoices(ask.options.toTypedArray()) }
+                .build()
+            val replyPi = PendingIntent.getService(
+                context, pendingAskNotifyId(ask.threadId),
+                Intent(context, TaskService::class.java).setAction(ACTION_ANSWER).putExtra(EXTRA_CONVERSATION, ask.threadId),
+                PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            b.addAction(Notification.Action.Builder(null, context.getString(R.string.action_reply), replyPi).addRemoteInput(reply).build())
+            ask.options.take(2).forEachIndexed { i, option ->
+                val pi = PendingIntent.getService(
+                    context, pendingAskNotifyId(ask.threadId) + 1 + i,
+                    Intent(context, TaskService::class.java).setAction(ACTION_ANSWER)
+                        .putExtra(EXTRA_ANSWER, option).putExtra(EXTRA_CONVERSATION, ask.threadId),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+                b.addAction(Notification.Action.Builder(null, option, pi).build())
+            }
+            context.getSystemService(NotificationManager::class.java).notify(pendingAskNotifyId(ask.threadId), b.build())
+        }
+
+        internal fun pendingAskNotifyId(threadId: String) = ID_PENDING_ASK + (threadId.hashCode() and 0xffff)
+
+        internal fun cancelPendingAskNotify(context: Context, threadId: String) {
+            context.getSystemService(NotificationManager::class.java).cancel(pendingAskNotifyId(threadId))
         }
 
         /** 追问等回答的时限:交给 AgentLoop,通知和卡片上写的分钟数也从这里来。 */
@@ -992,6 +1069,7 @@ class TaskService : Service() {
         /** 并行时结果通知的编号段,在槽位编号之外;循环使用,最多同时留这么多条。 */
         private const val ID_RESULT_FIRST = 10_000
         private const val RESULT_IDS = 1_000
+        private const val ID_PENDING_ASK = 8_000_000
         private val resultCount = AtomicInteger()
         private val TAKEOVER_QUEUED: String get() = tr(R.string.task_takeover_queued)
         private const val TAG = "MikaTask"
@@ -1103,12 +1181,22 @@ class TaskService : Service() {
 
         fun putAside(context: Context, waitKey: Int? = null, runKey: String? = null) = send(context, ACTION_PUT_ASIDE, waitKey, runKey)
 
-        /** 回答 Agent 的提问(ask_user)。 */
-        fun answer(context: Context, text: String, runKey: String? = null) {
-            if (!stateFor(context, runKey).isActive()) return
+        /** 回答 Agent 的提问(ask_user)。没有正在等的运行时,按未答问句在同一条对话里开一次新运行。 */
+        fun answer(context: Context, text: String, runKey: String? = null, conversationId: String? = null) {
+            val state = stateFor(context, runKey)
+            if (state is TaskState.WaitingInput) {
+                context.startService(
+                    Intent(context, TaskService::class.java).setAction(ACTION_ANSWER).putExtra(EXTRA_ANSWER, text)
+                        .apply { if (runKey != null) putExtra(EXTRA_RUN, runKey) },
+                )
+                return
+            }
+            val thread = conversationId
+                ?: (context.applicationContext as? com.wangzan101.mika.MikaApp)?.taskState?.shownRun?.conversationId
+            if (thread.isNullOrBlank()) return
             context.startService(
                 Intent(context, TaskService::class.java).setAction(ACTION_ANSWER).putExtra(EXTRA_ANSWER, text)
-                    .apply { if (runKey != null) putExtra(EXTRA_RUN, runKey) },
+                    .putExtra(EXTRA_CONVERSATION, thread),
             )
         }
 

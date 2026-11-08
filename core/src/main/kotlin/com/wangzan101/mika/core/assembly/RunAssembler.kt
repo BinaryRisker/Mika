@@ -8,6 +8,7 @@ import com.wangzan101.mika.core.run.Attendance
 import com.wangzan101.mika.core.run.RunOrigin
 import com.wangzan101.mika.core.tool.Verb
 import com.wangzan101.mika.core.tool.Risk
+import com.wangzan101.mika.core.tool.NoopSurfaceLayer
 import com.wangzan101.mika.core.tool.ToolConfig
 import com.wangzan101.mika.core.tool.ToolDispatcher
 import com.wangzan101.mika.core.uistate.Interfaces
@@ -30,14 +31,19 @@ internal class RunAssembler(private val providers: List<CapabilityProvider>) {
             .mapNotNull { it.open(spec) }
         val general = GeneralGroup.tools.filterNot { (spec.readOnly || child) && it.verb == Verb.MemoryEdit }
             .filterNot { spec.provenance.attendance == Attendance.Unattended &&
-            it.verb in setOf(Verb.AskUser, Verb.RequestConfirmation, Verb.HandToUser, Verb.ScheduleTask, Verb.ProfileEdit, Verb.SkillSave, Verb.MemoryEdit) }
+            it.verb in setOf(Verb.RequestConfirmation, Verb.HandToUser, Verb.ScheduleTask, Verb.ProfileEdit, Verb.SkillSave, Verb.MemoryEdit) }
             .filterNot { spec.provenance.origin == RunOrigin.Child && it.verb in setOf(Verb.SpawnAgent, Verb.MemorySave, Verb.MemoryEdit, Verb.ProfileEdit, Verb.ScheduleTask, Verb.SkillSave,
                 Verb.AskUser, Verb.RequestConfirmation, Verb.HandToUser) }
             .filter { !readOnly || it.risk == Risk.Read }
         val capabilityTools = capabilities.flatMap { it.tools() }.filter { !readOnly || it.risk == Risk.Read ||
             it.capability == "web" && it.verb == Verb.Navigate }
-        return ToolDispatcher(capabilities, general + capabilityTools,
-            listOf(CoreSections) + capabilities, config, { ctx -> Interfaces.attach(ctx, capabilities.mapNotNull { it.surface }, stableRefs) },
+        val assembled = general + capabilityTools
+        val tools = spec.toolNames?.let { allow -> assembled.filter { it.name in allow } } ?: assembled
+        return ToolDispatcher(capabilities, tools,
+            listOf(CoreSections) + capabilities, config, { ctx ->
+                val surfaces = capabilities.mapNotNull { it.surface }
+                if (surfaces.isEmpty()) NoopSurfaceLayer else Interfaces.attach(ctx, surfaces, stableRefs)
+            },
             formerPrefix, renamed, retired, moved)
     }
 }

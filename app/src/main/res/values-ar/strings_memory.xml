@@ -88,4 +88,25 @@
     <string name="skills_imported">مستوردة</string>
     <string name="skill_builtin_name">توجد مهارة مدمجة بهذا الاسم بالفعل. غيّر الاسم وحاول مجددًا.</string>
     <string name="skill_draft_pending">توجد مسودة بهذا الاسم بانتظار المراجعة بالفعل. تعامل معها أولًا.</string>
+    <string name="packs_title">الحزم</string>
+    <string name="packs_sub">ثبّت مهارات ونصوصًا وروتينات معًا</string>
+    <string name="backup_export">تصدير</string>
+    <string name="backup_export_sub">نسخة مشفرة من الذاكرة والمهارات والحزم والروتينات بدون مفاتيح</string>
+    <string name="packs_import">تثبيت حزمة</string>
+    <string name="packs_uninstall">إزالة %1$s</string>
+    <string name="packs_uninstall_title">الروتينات المفعّلة في هذه الحزمة</string>
+    <string name="packs_keep_routines">اتركها مفعّلة</string>
+    <string name="packs_stop_routines">أوقفها</string>
+    <string name="packs_installed">تم تثبيت %1$s</string>
+    <string name="packs_rejected">لم تُثبَّت الحزمة (%1$s)</string>
+    <string name="packs_removed">أُزيلت الحزمة</string>
+    <string name="backup_import">استيراد</string>
+    <string name="backup_password">كلمة المرور</string>
+    <string name="backup_password_hint">لهذا الملف فقط. لا يحفظها Mika.</string>
+    <string name="backup_preview">الذكريات %1$d والمهارات %2$d والحزم %3$d والروتينات %4$d والسماح %5$d والحظر %6$d. ستُستورد الروتينات متوقفة وتُستبدل القوائم.</string>
+    <string name="backup_import_confirm">استيراد</string>
+    <string name="backup_saved">تم التصدير</string>
+    <string name="backup_imported">تم الاستيراد. الروتينات متوقفة.</string>
+    <string name="backup_failed">تعذر قراءة الملف أو كتابته</string>
+    <string name="backup_bad_password">كلمة المرور خاطئة</string>
 </resources>

@@ -301,8 +301,7 @@ class LoopScenarioTest {
         snapshot("l_unconfirmed_labelled", end, "main" to main, "verifier" to checker)
     }
 
-    // (m) 不可逆操作:被拦下 → 申请确认 → 用户同意 → 发送 → 读到「已发送」→ 回答;做过对外的事,回答另请核查模型
-    // 发送不花钱:不先问,直接发,发完读一遍核实
+    // (m) 发送:先拦住 → 申请确认 → 用户同意这一次 → 发出 → 读到「已发送」→ 回答;做过对外的事,回答另请核查模型
     @Test fun irreversibleDoneDirectlyIsVerified() = runTest {
         val screen = ScriptedScreen(listOf(
             Screen(CHAT, listOf(label("@e1", "张三", 40), field("@e2", "发消息"), button("@e3", "+", 950))),
@@ -313,13 +312,20 @@ class LoopScenarioTest {
             call("phone_observe")
             call("phone_type_text", "text" to "明天见", "ref" to "@e2", "snapshotId" to "s1")
             call("phone_tap", "ref" to "@e3", "snapshotId" to "s1")
+            call("request_confirmation", "action" to "send", "target" to "张三", "content" to "明天见", "amount" to "", "app" to CHAT)
+            call("phone_tap", "ref" to "@e3", "snapshotId" to "s1")
             call("phone_observe")
             answer("已给张三发了「明天见」,聊天里显示「已发送」。")
         }
         val checker = fakeModel("checker") { verdict("pass", "聊天里显示已发送", "给张三发明天见" to "已发送") }
-        val end = loop(main, toolDispatcher(screen), checker = checker).run("给张三发明天见")
+        val l = loop(main, toolDispatcher(screen), checker = checker)
+        val run = async { l.run("给张三发明天见") }
+        advanceUntilIdle()
+        assertTrue("${l.state.value}", l.state.value is TaskState.WaitingConfirmation)
+        l.answerConfirmation(true)
+        val end = run.await()
         assertTrue("$end", end is TaskState.Succeeded && end.verified)
-        assertTrue(screen.calls.any { it.startsWith("tap @e3") })
+        assertEquals(1, screen.calls.count { it.startsWith("tap @e3") })
         snapshot("m_irreversible_verified", end, "main" to main, "verifier" to checker)
     }
 

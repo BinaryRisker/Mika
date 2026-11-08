@@ -2,6 +2,8 @@ package com.wangzan101.mika.task
 
 import com.wangzan101.mika.core.trigger.ConditionNotify
 import com.wangzan101.mika.core.trigger.MemoryTriggerStore
+import com.wangzan101.mika.core.trigger.RoutineKind
+import com.wangzan101.mika.core.trigger.ShareType
 import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.TriggerSnapshot
 import com.wangzan101.mika.core.trigger.TriggerStore
@@ -23,6 +25,25 @@ private data class ConditionPlanState(
     val baselineValue: String? = null,
     val baselineAtMs: Long? = null,
     val lastFiredAtMs: Long? = null,
+    val consecutiveFailures: Int = 0,
+    val tokenCap: Long = 0,
+    val displayName: String? = null,
+    val notifyOnChange: Boolean = false,
+    val snapshot: String? = null,
+    val stopMinutes: Int? = null,
+    val toolNames: List<String> = emptyList(),
+    val capabilityIds: List<String> = emptyList(),
+    val builtinId: String? = null,
+    val lastStatus: String? = null,
+    val kind: RoutineKind = RoutineKind.Schedule,
+    val shareTypes: List<ShareType> = emptyList(),
+    val packId: String? = null,
+    val topics: List<String> = emptyList(),
+    val sharedClaims: List<com.wangzan101.mika.core.trigger.SharedClaim> = emptyList(),
+    val watchUrl: String? = null,
+    val watchExpect: String? = null,
+    val unseenStreak: Int = 0,
+    val pendingUnseen: Boolean = false,
 )
 
 @Serializable
@@ -32,6 +53,9 @@ private val CONDITION_JSON = Json { ignoreUnknownKeys = true }
 
 private fun TriggerDefinition.conditionState() = ConditionPlanState(
     notifyWhen, cooldownMs, lastValue, baselineValue, baselineAtMs, lastFiredAtMs,
+    consecutiveFailures, tokenCap, displayName, notifyOnChange, snapshot, stopMinutes,
+    toolNames, capabilityIds, builtinId, lastStatus, kind, shareTypes, packId,
+    topics, sharedClaims, watchUrl, watchExpect, unseenStreak, pendingUnseen,
 )
 
 /** 主文件保持旧版 schema；新增字段只能进 sidecar。 */
@@ -42,11 +66,40 @@ private fun TriggerDefinition.legacy() = copy(
     baselineValue = null,
     baselineAtMs = null,
     lastFiredAtMs = null,
+    consecutiveFailures = 0,
+    tokenCap = 0,
+    displayName = null,
+    notifyOnChange = false,
+    snapshot = null,
+    stopMinutes = null,
+    toolNames = emptyList(),
+    capabilityIds = emptyList(),
+    builtinId = null,
+    lastStatus = null,
+    kind = RoutineKind.Schedule,
+    shareTypes = emptyList(),
+    packId = null,
+    topics = emptyList(),
+    sharedClaims = emptyList(),
+    watchUrl = null,
+    watchExpect = null,
+    unseenStreak = 0,
+    pendingUnseen = false,
 )
 
 private fun TriggerDefinition.withConditionState(state: ConditionPlanState?): TriggerDefinition {
-    if (state == null || conditionGoal == null) return this
-    return copy(
+    if (state == null) return this
+    val extras = copy(
+        consecutiveFailures = state.consecutiveFailures, tokenCap = state.tokenCap,
+        displayName = state.displayName, notifyOnChange = state.notifyOnChange, snapshot = state.snapshot,
+        stopMinutes = state.stopMinutes, toolNames = state.toolNames, capabilityIds = state.capabilityIds,
+        builtinId = state.builtinId, lastStatus = state.lastStatus,
+        kind = state.kind, shareTypes = state.shareTypes, packId = state.packId,
+        topics = state.topics, sharedClaims = state.sharedClaims, watchUrl = state.watchUrl,
+        watchExpect = state.watchExpect, unseenStreak = state.unseenStreak, pendingUnseen = state.pendingUnseen,
+    )
+    if (conditionGoal == null) return extras
+    return extras.copy(
         notifyWhen = state.notifyWhen,
         cooldownMs = state.cooldownMs,
         lastValue = state.lastValue,
@@ -101,7 +154,7 @@ class FileTriggerStore(
         val snapshot = memory.snapshot()
         writeAtomic(file, Json.encodeToString(snapshot.copy(triggers = snapshot.triggers.map { it.legacy() })))
         conditionStates.clear()
-        snapshot.triggers.filter { it.conditionGoal != null }.forEach { conditionStates[it.id] = it.conditionState() }
+        snapshot.triggers.forEach { conditionStates[it.id] = it.conditionState() }
         writeAtomic(conditionFile, CONDITION_JSON.encodeToString(ConditionPlanSnapshot(conditionStates.toMap())))
     }
 

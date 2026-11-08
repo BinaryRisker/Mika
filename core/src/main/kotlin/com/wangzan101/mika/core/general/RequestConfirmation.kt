@@ -25,8 +25,8 @@ import com.wangzan101.mika.core.uistate.lastSnapshot
 import com.wangzan101.mika.core.uistate.session
 
 /**
- * 花钱的那一步(下单、屏上有应付金额时的提交等)前请用户同意;询问时只有这一种要问。付款本身不在这里,交给用户亲手付。
- * 申报的前台核对用此刻重新读的一屏(不登记编号,不动模型手里的 ref)。
+ * 请用户同意下一动。发送和删除也走这里(金额留空);下单和屏上有应付金额的提交仍要写出金额。
+ * 付款本身不在这里,交给用户亲手付。申报的前台核对用此刻重新读的一屏(不登记编号,不动模型手里的 ref)。
  */
 internal object RequestConfirmation : SurfaceAware {
     override val verb = Verb.RequestConfirmation
@@ -35,10 +35,10 @@ internal object RequestConfirmation : SurfaceAware {
     override val def = ToolDef("request_confirmation",
         Prompts.tool("request_confirmation"),
         mapOf(
-            "action" to str("Kind of action that spends the money (order for placing an order or booking).", CONFIRM_ACTIONS),
-            "target" to str("Who or where the money goes (shop, seller, service), as shown on screen. At most $CONFIRM_FIELD_MAX characters."),
-            "content" to str("What is bought: item, spec, quantity. At most $CONFIRM_FIELD_MAX characters."),
-            "amount" to str("Amount and currency the user will pay, as shown on screen."),
+            "action" to str("send, delete, order, submit, or other. send and delete are not payments.", CONFIRM_ACTIONS),
+            "target" to str("Who or what this step is about, as shown on screen. For a send, the name in the title bar. At most $CONFIRM_FIELD_MAX characters."),
+            "content" to str("The exact text to send, or what is bought. At most $CONFIRM_FIELD_MAX characters."),
+            "amount" to str("Amount and currency the user will pay, as shown on screen. An empty string for send or delete."),
             "app" to str(APP_NOTE),
         ), listOf("action", "target", "content", "amount", "app"))
 
@@ -63,13 +63,15 @@ internal object RequestConfirmation : SurfaceAware {
                 a.str("amount", max = 10000)?.let(::capField), a.str("app")!!.trim())
             return fail("payment_requires_takeover", HINT_PAYMENT_TAKEOVER)
         }
-        // 只有花钱要问:写不出金额的操作不用申请,直接做
-        if (a.str("amount")?.any(Char::isDigit) != true) throw ArgError("amount",
-            "required: the total the user will pay, as shown on screen. An action that spends no money needs no approval: do it directly")
+        // 发送和删除不花钱,金额留空。下单、提交和其他申报仍要写出屏上的金额。
+        val free = kind == IrrevAction.send || kind == IrrevAction.delete
+        val amountText = a.str("amount", min = if (free) 0 else 1, max = 10000)
+        if (!free && amountText?.any(Char::isDigit) != true) throw ArgError("amount",
+            "required: the total the user will pay, as shown on screen")
         val app = ctx.confirmTarget(a.str("app")!!.trim())
         val req = ConfirmationRequest(
             kind, capField(a.str("target", max = 10000)!!), capField(a.str("content", max = 10000)!!),
-            a.str("amount", max = 10000)?.let(::capField), app,
+            amountText?.trim()?.takeIf { it.isNotEmpty() }?.let(::capField), app,
         )
         val fg = ctx.session.peek()?.packageName ?: ctx.lastSnapshot?.packageName
         return ToolExecution(okObj { put("asked", true) }, outcome = Outcome.Confirm(req, fg))

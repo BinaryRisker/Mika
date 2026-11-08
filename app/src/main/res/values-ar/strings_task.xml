@@ -93,4 +93,5 @@
     <string name="screens_waiting">بانتظار</string>
     <string name="screens_needs_you">تحتاج إليك</string>
     <string name="screens_zoom">تكبير هذه الشاشة</string>
+    <string name="routine_stopped_time">توقفت: تجاوزت هذه المهمة حدها الزمني</string>
 </resources>

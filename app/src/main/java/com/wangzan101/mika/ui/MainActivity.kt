@@ -283,8 +283,8 @@ internal fun <T> firstThatStarts(candidates: List<T>, start: (T) -> Boolean): Bo
 private data class SharedDraftRequest(val draft: SharedDraft, val serial: Long)
 
 /**
- * 页面切换:对话页是根,侧栏和设置等入口把页面压进 [NavStack],返回键和页面上的返回按钮都走 [NavStack.back]。
- * 各页面只通过回调进出,不知道彼此。
+ * 页面切换:今天这一页是根,对话从它进去;从通知点进来则是那条对话。侧栏和设置等入口把页面压进 [NavStack],
+ * 返回键和页面上的返回按钮都走 [NavStack.back]。各页面只通过回调进出,不知道彼此。
  */
 @Composable
 private fun MikaRoot(
@@ -325,7 +325,7 @@ private fun MikaRoot(
     LaunchedEffect(requestedConversation) {
         if (requestedConversation != null) {
             app.chat.openConversation(requestedConversation)
-            nav.reset()
+            nav.openChat()
             onConversationOpened()
         }
     }
@@ -333,7 +333,7 @@ private fun MikaRoot(
         val draft = sharedDraft?.draft
         if (draft != null) {
             val accepted = app.chat.openSharedDraft(draft)
-            if (accepted) nav.reset()
+            if (accepted) nav.openChat()
             onSharedDraftOpened(accepted, draft)
         }
     }
@@ -354,11 +354,11 @@ private fun MikaRoot(
     fun goOnboarding(step: OnboardingStep?) {
         onboarding = step
         when (step) {
-            // 上手的每一步都直接放在对话页上面一层,做完回到对话页
+            // 上手的每一步都直接放在今天这一页上面一层,做完回到今天
             OnboardingStep.Welcome -> nav.show(Route.Welcome)
             OnboardingStep.Model -> nav.show(Route.ModelSetup)
             OnboardingStep.Phone -> { setupRepair = false; nav.show(Route.PhoneSetup) }
-            null -> nav.reset()
+            null -> nav.goHome()
         }
     }
     LaunchedEffect(Unit) {
@@ -389,12 +389,8 @@ private fun MikaRoot(
                 },
             )
         }
-        Route.Chat -> screenStates.SaveableStateProvider(Route.Chat.name) {
-            // 对话页重新看得见(回到前台、从别的页面回来):补上别处存进来的轮次,接上别处开始的任务
-            LifecycleStartEffect(Unit) {
-                app.chat.refresh()
-                onStopOrDispose {}
-            }
+        Route.Today, Route.Chat -> {
+            val others by app.chat.otherRunning.collectAsState()
             ChatWithDrawer(
                 vm = app.chat,
                 check = check,
@@ -402,6 +398,9 @@ private fun MikaRoot(
                 conversations = { ConversationStore.shared(context).list() },
                 conversationChanges = ConversationStore.shared(context).changes,
                 conversationTitle = { ConversationStore.shared(context).title(it) },
+                onToday = { nav.goHome() },
+                onOpenChat = { nav.openChat() },
+                onBackFromChat = if (nav.current == Route.Chat) ({ nav.back() }) else null,
                 onPlans = { nav.pushFromDrawer(Route.Plans) },
                 onMemory = { nav.pushFromDrawer(Route.Memory) },
                 onSettings = { nav.pushFromDrawer(Route.Settings) },
@@ -412,28 +411,46 @@ private fun MikaRoot(
                 reopen = nav.reopenDrawer,
                 onReopened = nav::drawerReopened,
             ) { openDrawer ->
-                ChatScreen(
-                    vm = app.chat,
-                    check = check,
-                    frames = app.taskState.frames,
-                    webOpen = app.tasks.webScreenOpen,
-                    reduceMotion = MikaTheme.reduceMotion,
-                    onOpenDrawer = openDrawer,
-                    openSettings = { nav.push(Route.Settings) },
-                    openRun = { runId = it; nav.push(Route.Run) },
-                    phoneSetupNeeded = phoneSetupNeeded && status.builtinShell != BuiltinShellStatus.Running,
-                    openPhoneSetup = { onFix(Fix.OpenPhoneSetup) },
-                    loadSource = { id ->
-                        withContext(Dispatchers.IO) { evidenceSource(RunStore(context).events(id)) { ConfirmationNotifier.appLabel(context, it) } }
-                    },
-                    openSource = { id, legacy ->
-                        sourceRunId = id
-                        sourceLegacyText = legacy
-                        nav.push(Route.Source)
-                    },
-                    voice = app.voice,
-                    openSpeechModel = { nav.push(Route.SpeechModel) },
-                )
+                if (nav.current == Route.Today) {
+                    TodayScreen(
+                        context, app.taskState, othersRunning = others.isNotEmpty(),
+                        onOpenDrawer = openDrawer,
+                        onOpenConversation = { id ->
+                            app.chat.openConversation(id)
+                            nav.openChat()
+                        },
+                    )
+                } else {
+                    screenStates.SaveableStateProvider(Route.Chat.name) {
+                        // 对话页重新看得见(回到前台、从别的页面回来):补上别处存进来的轮次,接上别处开始的任务
+                        LifecycleStartEffect(Unit) {
+                            app.chat.refresh()
+                            onStopOrDispose {}
+                        }
+                        ChatScreen(
+                            vm = app.chat,
+                            check = check,
+                            frames = app.taskState.frames,
+                            webOpen = app.tasks.webScreenOpen,
+                            reduceMotion = MikaTheme.reduceMotion,
+                            onOpenDrawer = openDrawer,
+                            openSettings = { nav.push(Route.Settings) },
+                            openRun = { runId = it; nav.push(Route.Run) },
+                            phoneSetupNeeded = phoneSetupNeeded && status.builtinShell != BuiltinShellStatus.Running,
+                            openPhoneSetup = { onFix(Fix.OpenPhoneSetup) },
+                            loadSource = { id ->
+                                withContext(Dispatchers.IO) { evidenceSource(RunStore(context).events(id)) { ConfirmationNotifier.appLabel(context, it) } }
+                            },
+                            openSource = { id, legacy ->
+                                sourceRunId = id
+                                sourceLegacyText = legacy
+                                nav.push(Route.Source)
+                            },
+                            voice = app.voice,
+                            openSpeechModel = { nav.push(Route.SpeechModel) },
+                        )
+                    }
+                }
             }
         }
         Route.Settings -> {
@@ -524,11 +541,11 @@ private fun MikaRoot(
         }
         Route.Plans -> PlansScreen(context, onBack = back, onOpenConversation = {
             app.chat.openConversation(it)
-            nav.reset()
+            nav.openChat()
         })
         Route.Screens -> ScreensScreen(app.taskState, onBack = back, onOpenConversation = {
             app.chat.openConversation(it)
-            nav.reset()
+            nav.openChat()
         })
     }
 }
