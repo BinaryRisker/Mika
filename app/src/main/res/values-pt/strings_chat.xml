@@ -186,4 +186,5 @@
     <string name="worth_prompt_hint">Um assunto curto</string>
     <string name="worth_prompt_save">Salvar</string>
     <string name="pending_ask_reply">Pergunta: %1$s\nMinha resposta: %2$s</string>
+    <string name="worth_reject">Não desse tipo</string>
 </resources>

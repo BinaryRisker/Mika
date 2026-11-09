@@ -147,7 +147,7 @@
 
 ### sources:设备来源
 
-只读。能力 id 是 `sources`(`core/cap/sources/`)。端口 `CalendarSource.todayAndTomorrow`、`NextAlarmSource.next`;安卓实现读 `CalendarContract.Instances`(今天和明天)和 `AlarmManager.nextAlarmClock`(`app/cap/sources/`)。未授权时 JSON 是 `ok=false, error=unauthorized, message=未授权`,没有 `events`。工具 `read_calendar`、`read_next_alarm`,风险 Read,不折叠。没有端口时 `available()` 为假,默认提示词金样不带这两项。
+只读。能力 id 是 `sources`(`core/cap/sources/`)。端口 `CalendarSource.todayAndTomorrow`、`NextAlarmSource.next`、`NotificationSource.recent`;安卓实现读 `CalendarContract.Instances`(今天和明天)、`AlarmManager.nextAlarmClock`,以及通知使用权(`NotifListener`,`NotificationAllowStore`,默认一个包名都不开)。未授权时 JSON 是 `ok=false, error=unauthorized, message=未授权`,没有 `events` / `items`。验证码、密码、卡号一类通知整条丢掉,结果里不出现,也不写「有一条被丢弃」(`NotificationPrivacy`)。工具 `read_calendar`、`read_next_alarm`、`read_notifications`,风险 Read,不折叠。没有端口时 `available()` 为假,默认提示词金样不带这几项。早晨安排的最终工具名单不含 `read_notifications`。
 
 ### phone:手机 App
 

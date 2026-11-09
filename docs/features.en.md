@@ -50,9 +50,35 @@ Any app installed on your phone works, with no per-app integration: Mika looks a
 - In other apps, long-press the floating capsule to speak and let go to send it straight to Mika (it adds to a running task, or answers when Mika is asking you). Let go on "Edit" to open the card with the words in its input.
 - By default it uses the phone's built-in speech recognition, which shows words as you speak and costs nothing. If the phone has none, or it is not accurate enough, pick a provider's speech model under Settings › Models › Speech to text; see [models and sign-in](models.en.md#speech-to-text).
 
+## Today
+
+Opening the app lands on Today: the next calendar event and next alarm, items waiting for you, and today's routines. Empty rows stay empty. Tapping a row opens that conversation. Run now still uses the button on the plans page. Opening from a notification goes straight to that chat.
+
+## Sending, deleting and spend
+
+- Sending to someone not on the allow list needs a confirmation card. When you are away, on a schedule, or the task came from the computer, Mika keeps a draft and does not send. Names on the allow list go out. Packages on the deny list are refused with no card.
+- The spend cap is off by default. When it runs out, the run stops on spend and says so.
+
+## Routines
+
+- The plans page can pause, reschedule, run now, or delete. Creating or changing a time shows the next three times.
+- **Morning briefing**: on weekdays it reads today and tomorrow's events and the next alarm. The first run only records; no change means no notification.
+- **Worth reading**: save topics, then enable. It notifies only for new, sourced items that match a topic. On the result card you can tap "Not this kind" to store a preference. Two unseen notifications pause it.
+- Sharing text or an image from another app lists matching routines first; it starts only after you pick one.
+- Enabled shortcuts appear above an empty chat. Tapping one fills the box and does not send.
+
+## Packs and backup
+
+- You can install a pack of skills, scripts and routine templates. A failed check installs nothing. Updating a pack already installed shows the skill and template diff first; it replaces only after you confirm.
+- Export is encrypted with a password you set. Provider keys are not in the file. Imported routines stay off.
+
+## Notification summaries
+
+Off by default. Turn on notification access in system settings, then enable apps one by one. Mika reads title and body only. Notifications that look like codes, passwords or card numbers are dropped entirely and are not mentioned.
+
 ## Ask / Autonomous
 
-- The default is **Ask**: only spending money (placing orders, paying) is confirmed with you first; sending messages, submitting and deleting are done directly. You can switch to **Autonomous**, which does not ask even before paying. See [Ask and Autonomous](modes.en.md).
+- The default is **Ask**: spending money is confirmed with you first. Sending or deleting outside the allow list also needs a card; when you are away, Mika keeps a draft. You can switch to **Autonomous**, which does not ask even before paying; sending and deleting still need a card. See [Ask and Autonomous](modes.en.md).
 
 ## Memory
 

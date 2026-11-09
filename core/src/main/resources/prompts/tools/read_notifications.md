@@ -1,0 +1,1 @@
+Read recent notifications from apps the user has turned on for Mika. Only title and body. Notifications that look like verification codes, passwords or card numbers are omitted entirely; the result does not say that any were dropped. If notification access is off, the result is unauthorized and tells the user how to grant it. This is read-only.

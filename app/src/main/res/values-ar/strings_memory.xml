@@ -109,4 +109,7 @@
     <string name="backup_imported">تم الاستيراد. الروتينات متوقفة.</string>
     <string name="backup_failed">تعذر قراءة الملف أو كتابته</string>
     <string name="backup_bad_password">كلمة المرور خاطئة</string>
+    <string name="packs_update_title">تحديث %1$s؟</string>
+    <string name="packs_update_confirm">استبدال</string>
+    <string name="packs_updated">تم تحديث %1$s</string>
 </resources>

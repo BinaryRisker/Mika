@@ -82,4 +82,12 @@
     <string name="screens_needs_you">Needs you</string>
     <string name="screens_zoom">Enlarge this screen</string>
     <string name="routine_stopped_time">Stopped: this routine ran past its time limit</string>
+    <string name="notif_listen_title">Notification summaries</string>
+    <string name="notif_listen_sub">Read titles and text from apps you turn on</string>
+    <string name="notif_listen_grant">Allow notification access</string>
+    <string name="notif_listen_grant_sub">Opens system settings. Off until you turn it on.</string>
+    <string name="notif_listen_grant_on">Access is on</string>
+    <string name="notif_listen_apps">Apps</string>
+    <string name="notif_listen_empty">After access is on, apps that post a notification appear here.</string>
+    <string name="notif_listen_off">Access is off. Mika cannot read notifications.</string>
 </resources>

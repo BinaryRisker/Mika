@@ -884,7 +884,8 @@ class TaskRun(
                 root = phoneServices.shellManager.root.takeIf { !conditionCheck && it.commandsAllowed() }
                     ?.let { r -> RootCommands(RootShell::su, r::commandsAllowed) { a -> if (a == null) r.suGone() else r.commandsDenied(a) } },
                 calendar = com.wangzan101.mika.cap.sources.AndroidCalendarSource(service),
-                nextAlarm = com.wangzan101.mika.cap.sources.AndroidAlarmSource(service))
+                nextAlarm = com.wangzan101.mika.cap.sources.AndroidAlarmSource(service),
+                notifications = com.wangzan101.mika.cap.sources.AndroidNotificationSource(service))
             dispatcher = tools
             val agent = AgentLoop(
                 model, tools,

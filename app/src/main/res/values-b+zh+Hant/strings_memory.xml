@@ -109,4 +109,7 @@
     <string name="backup_imported">已匯入。常規是關著的。</string>
     <string name="backup_failed">這份檔案沒能讀出或寫出</string>
     <string name="backup_bad_password">口令不對</string>
+    <string name="packs_update_title">更新 %1$s？</string>
+    <string name="packs_update_confirm">取代</string>
+    <string name="packs_updated">已更新 %1$s</string>
 </resources>

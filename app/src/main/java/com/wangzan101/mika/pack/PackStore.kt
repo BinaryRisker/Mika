@@ -6,6 +6,7 @@ import com.wangzan101.mika.core.knowledge.GuideCatalog
 import com.wangzan101.mika.core.knowledge.KnowledgeIndex
 import com.wangzan101.mika.core.pack.ExamplePack
 import com.wangzan101.mika.core.pack.PackCheck
+import com.wangzan101.mika.core.pack.PackDiff
 import com.wangzan101.mika.core.pack.PackManifest
 import com.wangzan101.mika.core.pack.PackManifests
 import com.wangzan101.mika.core.pack.PackTools
@@ -54,16 +55,23 @@ object PackStore {
     fun enabledCount(context: Context, id: String): Int =
         FileTriggerStore(File(context.filesDir, "triggers-v3.json")).all().count { it.packId == id && it.enabled }
 
-    fun installZip(context: Context, bytes: ByteArray): PackCheck {
+    fun installZip(context: Context, bytes: ByteArray, replace: Boolean = false): PackCheck {
         val (files, err) = com.wangzan101.mika.core.pack.PackZip.files(bytes)
         if (files == null) return PackCheck.Rejected(err ?: "bad_zip")
-        return install(context, files, knownTools(), builtinNames())
+        return install(context, files, knownTools(), builtinNames(), replace)
     }
 
-    fun install(context: Context, files: Map<String, ByteArray>, knownTools: Set<String>, builtinNames: Set<String>): PackCheck {
+    fun install(
+        context: Context, files: Map<String, ByteArray>, knownTools: Set<String>, builtinNames: Set<String>,
+        replace: Boolean = false,
+    ): PackCheck {
         val checked = PackValidate.check(files, knownTools, builtinNames)
         if (checked !is PackCheck.Ok) return checked
         val dest = dir(context, checked.manifest.id)
+        if (dest.isDirectory && File(dest, "manifest.json").isFile && !replace) {
+            val old = PackValidate.check(filesOf(context, checked.manifest.id), knownTools, builtinNames)
+            if (old is PackCheck.Ok) return PackCheck.Update(checked, PackDiff.of(old, checked))
+        }
         dest.deleteRecursively()
         dest.mkdirs()
         for ((path, bytes) in files) {
@@ -72,18 +80,29 @@ object PackStore {
             f.writeBytes(bytes)
         }
         val skills = MemoryRuntime.of(context).skills()
+        val now = System.currentTimeMillis()
         for (skill in checked.skills) {
+            val existing = skills.get(skill.name)
             skills.put(
                 PersonalSkill(
-                    name = skill.name, markdown = skill.markdown, status = SkillStatus.trial,
-                    learnedFrom = null, replacesDraftOf = null, createdAt = System.currentTimeMillis(),
-                    outcomes = emptyList(), source = "pack:${checked.manifest.id}",
+                    name = skill.name, markdown = skill.markdown,
+                    status = existing?.status ?: SkillStatus.trial,
+                    learnedFrom = existing?.learnedFrom, replacesDraftOf = existing?.replacesDraftOf,
+                    createdAt = existing?.createdAt ?: now,
+                    outcomes = existing?.outcomes ?: emptyList(),
+                    source = existing?.source ?: "pack:${checked.manifest.id}",
                 ),
             )
         }
         val conversations = ConversationStore.shared(context)
         val store = FileTriggerStore(File(context.filesDir, "triggers-v3.json"))
+        val existingRoutines = store.all().filter { it.packId == checked.manifest.id }
         for (template in checked.templates) {
+            val match = existingRoutines.firstOrNull { it.displayName == template.name }
+            if (match != null) {
+                if (!match.enabled) store.upsert(match.copy(goal = template.goal, kind = template.kind))
+                continue
+            }
             val threadId = conversations.newConversation()
             conversations.setTitle(threadId, template.name)
             store.upsert(

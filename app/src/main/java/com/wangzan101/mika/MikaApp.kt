@@ -359,6 +359,8 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
             sharedDrafts = sharedDrafts,
             pendingAsks = pendingAsks.changes,
             takePendingAsk = { id -> TaskService.cancelPendingAskNotify(app, id); pendingAsks.remove(id) },
+            worthConversation = { id -> com.wangzan101.mika.task.TriggerRuntime.isWorthConversation(app, id) },
+            rejectWorth = { id, text -> com.wangzan101.mika.task.TriggerRuntime.rejectSuggestion(app, text, id) },
             sharedDraftUri = { name ->
                 sharedDrafts.imageFile(name)?.let { file ->
                     androidx.core.content.FileProvider.getUriForFile(app, com.wangzan101.mika.chat.AttachFilesProvider.authority(app.packageName), file).toString()

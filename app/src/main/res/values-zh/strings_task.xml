@@ -79,4 +79,12 @@
     <string name="screens_needs_you">等你处理</string>
     <string name="screens_zoom">放大这块屏</string>
     <string name="routine_stopped_time">到点还未结束，已停止</string>
+    <string name="notif_listen_title">通知摘要</string>
+    <string name="notif_listen_sub">读你打开过的 App 的标题和正文</string>
+    <string name="notif_listen_grant">打开通知使用权</string>
+    <string name="notif_listen_grant_sub">会打开系统设置。默认关着。</string>
+    <string name="notif_listen_grant_on">已经打开</string>
+    <string name="notif_listen_apps">App</string>
+    <string name="notif_listen_empty">打开使用权后，发过通知的 App 会出现在这里。</string>
+    <string name="notif_listen_off">使用权关着，Mika 读不到通知。</string>
 </resources>

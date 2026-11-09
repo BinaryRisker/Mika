@@ -176,4 +176,5 @@
     <string name="worth_prompt_hint">短い関心</string>
     <string name="worth_prompt_save">保存</string>
     <string name="pending_ask_reply">さっきの質問：%1$s\n私の答え：%2$s</string>
+    <string name="worth_reject">この種は不要</string>
 </resources>

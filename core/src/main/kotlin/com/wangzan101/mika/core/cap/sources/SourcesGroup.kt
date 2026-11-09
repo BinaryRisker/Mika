@@ -4,7 +4,7 @@ import com.wangzan101.mika.core.tool.AgentTool
 
 /** 只读设备来源一组：今天和明天的日程、系统报告的下一个闹钟。 */
 internal object SourcesGroup {
-    val tools: List<AgentTool> = listOf(ReadCalendar, ReadNextAlarm)
+    val tools: List<AgentTool> = listOf(ReadCalendar, ReadNextAlarm, ReadNotifications)
 }
 
 internal interface SourcesTool : AgentTool {

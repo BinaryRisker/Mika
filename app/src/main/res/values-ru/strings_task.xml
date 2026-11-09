@@ -88,4 +88,12 @@
     <string name="screens_needs_you">Нужны вы</string>
     <string name="screens_zoom">Увеличить этот экран</string>
     <string name="routine_stopped_time">Остановлено: эта процедура превысила лимит времени</string>
+    <string name="notif_listen_title">Сводка уведомлений</string>
+    <string name="notif_listen_sub">Читает заголовок и текст приложений, которые вы включите</string>
+    <string name="notif_listen_grant">Разрешить доступ к уведомлениям</string>
+    <string name="notif_listen_grant_sub">Откроет системные настройки. По умолчанию выключено.</string>
+    <string name="notif_listen_grant_on">Доступ включён</string>
+    <string name="notif_listen_apps">Приложения</string>
+    <string name="notif_listen_empty">Когда доступ включён, здесь появятся приложения, которые присылали уведомления.</string>
+    <string name="notif_listen_off">Доступ выключен. Mika не может читать уведомления.</string>
 </resources>

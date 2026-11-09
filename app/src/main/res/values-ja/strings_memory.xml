@@ -109,4 +109,7 @@
     <string name="backup_imported">読み込みました。ルーチンはオフです。</string>
     <string name="backup_failed">このファイルを扱えませんでした</string>
     <string name="backup_bad_password">パスワードが違います</string>
+    <string name="packs_update_title">%1$s を更新しますか？</string>
+    <string name="packs_update_confirm">置き換える</string>
+    <string name="packs_updated">%1$s を更新しました</string>
 </resources>

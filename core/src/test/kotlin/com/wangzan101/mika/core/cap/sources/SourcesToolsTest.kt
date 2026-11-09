@@ -63,6 +63,36 @@ class SourcesToolsTest {
         assertTrue(MorningNotify.shouldSpeak(null, MorningSnapshot(alarm = null)))
     }
 
+    @Test fun notificationsDropSensitiveAndSkipDisallowedPackages() = runTest {
+        val posts = listOf(
+            NotificationPost("com.chat", "张三", "明天见", 1L, "聊天"),
+            NotificationPost("com.bank", "验证码", "验证码 834921", 2L, "银行"),
+            NotificationPost("com.mail", "邮件", "发票到了", 3L, "邮箱"),
+        )
+        val visible = NotificationPrivacy.allowed(posts, setOf("com.chat", "com.bank"))
+        assertEquals(listOf("com.chat"), visible.map { it.packageName })
+        assertFalse(visible.toString().contains("834921"))
+        assertFalse(visible.toString().contains("有一条"))
+        val dispatcher = toolDispatcher(
+            FakeScreen(),
+            notifications = { NotificationRead.Ok(visible) },
+        )
+        val result = dispatcher.execute(Part.ToolCall("n", "read_notifications", "{}"))
+        assertEquals("true", result.content["ok"]?.jsonPrimitive?.content)
+        assertFalse(result.content.toString().contains("834921"))
+        assertFalse(result.content.toString().contains("discard"))
+    }
+
+    @Test fun notificationsUnauthorizedOmitsBodies() = runTest {
+        val dispatcher = toolDispatcher(
+            FakeScreen(),
+            notifications = { NotificationRead.Unauthorized("打开系统设置") },
+        )
+        val result = dispatcher.execute(Part.ToolCall("n", "read_notifications", "{}"))
+        assertEquals("unauthorized", result.content["error"]?.jsonPrimitive?.content)
+        assertFalse(result.content.containsKey("items"))
+    }
+
     @Test fun nextUpcomingEventSkipsEndedAndPicksEarliestStart() {
         val past = CalendarEvent("过了", 1L, 2L, false, null, null)
         val live = CalendarEvent("进行中", 5L, 20L, false, null, null)

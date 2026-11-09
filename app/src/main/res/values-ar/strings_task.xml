@@ -94,4 +94,12 @@
     <string name="screens_needs_you">تحتاج إليك</string>
     <string name="screens_zoom">تكبير هذه الشاشة</string>
     <string name="routine_stopped_time">توقفت: تجاوزت هذه المهمة حدها الزمني</string>
+    <string name="notif_listen_title">ملخص الإشعارات</string>
+    <string name="notif_listen_sub">يقرأ العنوان والنص من التطبيقات التي تشغّلها</string>
+    <string name="notif_listen_grant">السماح بالوصول إلى الإشعارات</string>
+    <string name="notif_listen_grant_sub">يفتح إعدادات النظام. مغلق افتراضيًا.</string>
+    <string name="notif_listen_grant_on">الوصول مفعّل</string>
+    <string name="notif_listen_apps">تطبيقات</string>
+    <string name="notif_listen_empty">بعد تفعيل الوصول، تظهر هنا التطبيقات التي أرسلت إشعارًا.</string>
+    <string name="notif_listen_off">الوصول مغلق. لا تستطيع Mika قراءة الإشعارات.</string>
 </resources>

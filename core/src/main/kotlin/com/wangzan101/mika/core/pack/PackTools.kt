@@ -12,7 +12,7 @@ object PackTools {
         "phone_press_key", "phone_query", "phone_run", "phone_scroll", "phone_set_alarm", "phone_set_timer",
         "phone_set_wheel", "phone_share_text", "phone_show_alarms", "phone_swipe", "phone_system_command",
         "phone_tap", "phone_type_text", "phone_wait",
-        "press_key", "profile_edit", "read_calendar", "read_file", "read_next_alarm", "request_confirmation",
+        "press_key", "profile_edit", "read_calendar", "read_file", "read_next_alarm", "read_notifications", "request_confirmation",
         "root_run_command", "run_bundled_script", "run_command", "schedule_task", "screenshot", "scroll",
         "search_files", "settings_list", "settings_set", "share_file", "skill_read", "skill_save",
         "skill_search", "spawn_agent", "swipe", "tap", "type_text", "view_past_screens", "view_user_screen",

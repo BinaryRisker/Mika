@@ -447,13 +447,18 @@ object TriggerRuntime {
         }
     }
 
+    fun isWorthConversation(context: Context, conversationId: String): Boolean =
+        store(context).all().any { WorthReading.isThis(it) && it.threadId == conversationId }
+
     @Synchronized fun rejectSuggestion(context: Context, text: String, conversationId: String) {
+        val clip = text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }?.take(200) ?: return
+        val body = if (clip.startsWith("不要这类")) clip else "不要这类：$clip"
         val mem = com.wangzan101.mika.memory.MemoryRuntime.of(context).store()
         mem.add(
             com.wangzan101.mika.core.memory.MemoryKind.preference,
-            text,
+            body,
             emptyList(),
-            com.wangzan101.mika.core.memory.MemorySource("click", text, conversationId, System.currentTimeMillis()),
+            com.wangzan101.mika.core.memory.MemorySource("click", clip, conversationId, System.currentTimeMillis()),
         )
         noteConversationOpened(context, conversationId)
     }

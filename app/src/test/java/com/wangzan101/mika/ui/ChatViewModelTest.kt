@@ -2557,4 +2557,17 @@ class ChatViewModelTest {
         assertTrue(calls.any { it.startsWith("start:") && "同事张伟" in it && "发给哪个张伟?" in it })
         assertTrue(pending.value.isEmpty())
     }
+
+    @Test fun worthRejectIsOnWorthConversationOnly() = runTest {
+        val rejected = mutableListOf<String>()
+        val vm = ChatViewModel(
+            backgroundScope, state, stage, actions, ConversationStore(tmp.newFolder()),
+            worthConversation = { it == "worth" },
+            rejectWorth = { id, text -> rejected += "$id:$text" },
+        )
+        assertTrue(vm.showWorthReject("worth"))
+        assertFalse(vm.showWorthReject("other"))
+        vm.rejectWorthSuggestion("worth", "固态电池量产")
+        assertEquals(listOf("worth:固态电池量产"), rejected)
+    }
 }

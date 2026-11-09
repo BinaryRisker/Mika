@@ -109,4 +109,7 @@
     <string name="backup_imported">Imported. Routines are off.</string>
     <string name="backup_failed">Could not read or write that file</string>
     <string name="backup_bad_password">Wrong password</string>
+    <string name="packs_update_title">Update %1$s?</string>
+    <string name="packs_update_confirm">Replace</string>
+    <string name="packs_updated">Updated %1$s</string>
 </resources>

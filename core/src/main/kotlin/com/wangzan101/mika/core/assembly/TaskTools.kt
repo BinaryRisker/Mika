@@ -21,6 +21,7 @@ import com.wangzan101.mika.core.cap.sources.SourcesCapability
 import com.wangzan101.mika.core.cap.sources.SourcesGroup
 import com.wangzan101.mika.core.cap.sources.CalendarSource
 import com.wangzan101.mika.core.cap.sources.NextAlarmSource
+import com.wangzan101.mika.core.cap.sources.NotificationSource
 import com.wangzan101.mika.core.uistate.IdleScroll
 import com.wangzan101.mika.core.cap.web.PagePacing
 import com.wangzan101.mika.core.uistate.PlacePace
@@ -133,6 +134,8 @@ fun toolDispatcher(
     calendar: CalendarSource? = null,
     /** 系统报告的下一个闹钟；为空时不提供 read_next_alarm。 */
     nextAlarm: NextAlarmSource? = null,
+    /** 用户打开过的 App 通知；为空时不提供 read_notifications。 */
+    notifications: NotificationSource? = null,
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
         imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, personalSkills, selfConfig, runRecords, webSearch, searchAllowText)
@@ -152,7 +155,7 @@ fun toolDispatcher(
         },
         object : CapabilityProvider {
             override val id = SOURCES
-            override fun open(spec: RunSpec) = SourcesCapability(calendar, nextAlarm)
+            override fun open(spec: RunSpec) = SourcesCapability(calendar, nextAlarm, notifications)
         },
     ) + listOfNotNull(root?.let { port ->
         object : CapabilityProvider {

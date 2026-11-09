@@ -109,4 +109,7 @@
     <string name="backup_imported">가져왔습니다. 루틴은 꺼져 있습니다.</string>
     <string name="backup_failed">이 파일을 처리하지 못했습니다</string>
     <string name="backup_bad_password">비밀번호가 다릅니다</string>
+    <string name="packs_update_title">%1$s을(를) 업데이트할까요?</string>
+    <string name="packs_update_confirm">바꾸기</string>
+    <string name="packs_updated">%1$s을(를) 업데이트했습니다</string>
 </resources>

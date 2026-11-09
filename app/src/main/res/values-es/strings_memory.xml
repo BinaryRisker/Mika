@@ -109,4 +109,7 @@
     <string name="backup_imported">Importado. Las rutinas están apagadas.</string>
     <string name="backup_failed">No se pudo leer o escribir ese archivo</string>
     <string name="backup_bad_password">Contraseña incorrecta</string>
+    <string name="packs_update_title">¿Actualizar %1$s?</string>
+    <string name="packs_update_confirm">Sustituir</string>
+    <string name="packs_updated">Actualizado %1$s</string>
 </resources>

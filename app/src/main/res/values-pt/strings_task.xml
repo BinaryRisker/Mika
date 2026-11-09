@@ -85,4 +85,12 @@
     <string name="screens_needs_you">Precisa de você</string>
     <string name="screens_zoom">Ampliar esta tela</string>
     <string name="routine_stopped_time">Parada: esta rotina ultrapassou o limite de tempo</string>
+    <string name="notif_listen_title">Resumos de notificações</string>
+    <string name="notif_listen_sub">Lê título e texto dos apps que você ligar</string>
+    <string name="notif_listen_grant">Permitir acesso às notificações</string>
+    <string name="notif_listen_grant_sub">Abre as configurações do sistema. Desligado por padrão.</string>
+    <string name="notif_listen_grant_on">O acesso está ligado</string>
+    <string name="notif_listen_apps">Apps</string>
+    <string name="notif_listen_empty">Com o acesso ligado, os apps que enviarem notificação aparecem aqui.</string>
+    <string name="notif_listen_off">O acesso está desligado. O Mika não consegue ler notificações.</string>
 </resources>

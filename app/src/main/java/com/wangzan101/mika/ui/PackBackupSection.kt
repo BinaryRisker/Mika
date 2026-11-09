@@ -54,6 +54,7 @@ internal fun PackBackupSection() {
     var passwordMode by remember { mutableStateOf<PasswordMode?>(null) }
     var preview by remember { mutableStateOf<Pair<AssistantSnapshot, BackupPreview>?>(null) }
     var pendingExport by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingUpdate by remember { mutableStateOf<Pair<ByteArray, PackCheck.Update>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
 
     val pickPack = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -63,12 +64,13 @@ internal fun PackBackupSection() {
                 context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             } ?: return@launch
             val result = withContext(Dispatchers.IO) { PackStore.installZip(context, bytes) }
-            note = when (result) {
+            when (result) {
                 is PackCheck.Ok -> {
                     tick++
-                    context.getString(R.string.packs_installed, result.manifest.displayName)
+                    note = context.getString(R.string.packs_installed, result.manifest.displayName)
                 }
-                is PackCheck.Rejected -> context.getString(R.string.packs_rejected, result.reason)
+                is PackCheck.Rejected -> note = context.getString(R.string.packs_rejected, result.reason)
+                is PackCheck.Update -> pendingUpdate = bytes to result
             }
         }
     }
@@ -202,6 +204,30 @@ internal fun PackBackupSection() {
                 }) { Text(stringResource(R.string.backup_import_confirm)) }
             },
             dismissButton = { TextButton({ preview = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    pendingUpdate?.let { (bytes, update) ->
+        MikaDialog(
+            onDismissRequest = { pendingUpdate = null },
+            title = { Text(stringResource(R.string.packs_update_title, update.incoming.manifest.displayName)) },
+            text = { Text(update.diff.summary(), style = MikaType.Body) },
+            confirmButton = {
+                TextButton({
+                    pendingUpdate = null
+                    scope.launch {
+                        val applied = withContext(Dispatchers.IO) { PackStore.installZip(context, bytes, replace = true) }
+                        when (applied) {
+                            is PackCheck.Ok -> {
+                                tick++
+                                note = context.getString(R.string.packs_updated, applied.manifest.displayName)
+                            }
+                            is PackCheck.Rejected -> note = context.getString(R.string.packs_rejected, applied.reason)
+                            is PackCheck.Update -> note = context.getString(R.string.packs_rejected, "update")
+                        }
+                    }
+                }) { Text(stringResource(R.string.packs_update_confirm)) }
+            },
+            dismissButton = { TextButton({ pendingUpdate = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

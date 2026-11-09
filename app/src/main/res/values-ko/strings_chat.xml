@@ -176,4 +176,5 @@
     <string name="worth_prompt_hint">짧은 관심사</string>
     <string name="worth_prompt_save">저장</string>
     <string name="pending_ask_reply">방금 질문: %1$s\n내 답: %2$s</string>
+    <string name="worth_reject">이런 건 그만</string>
 </resources>

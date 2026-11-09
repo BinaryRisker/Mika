@@ -176,4 +176,5 @@
     <string name="worth_prompt_hint">一句短的关注</string>
     <string name="worth_prompt_save">保存</string>
     <string name="pending_ask_reply">刚才的问题：%1$s\n我的回答：%2$s</string>
+    <string name="worth_reject">不要这类</string>
 </resources>

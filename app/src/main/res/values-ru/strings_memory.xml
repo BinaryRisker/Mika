@@ -109,4 +109,7 @@
     <string name="backup_imported">Импортировано. Сценарии выключены.</string>
     <string name="backup_failed">Не удалось прочитать или записать файл</string>
     <string name="backup_bad_password">Неверный пароль</string>
+    <string name="packs_update_title">Обновить %1$s?</string>
+    <string name="packs_update_confirm">Заменить</string>
+    <string name="packs_updated">Обновлён %1$s</string>
 </resources>

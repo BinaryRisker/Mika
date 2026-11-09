@@ -9,17 +9,18 @@ import com.wangzan101.mika.core.tool.AgentTool
 import com.wangzan101.mika.core.tool.ToolContext
 
 /**
- * 只读设备来源：本机日历（今天和明天）和系统报告的下一个闹钟。
+ * 只读设备来源：本机日历（今天和明天）、系统报告的下一个闹钟、用户打开过的 App 通知。
  * 不改任何数据。没接端口时工具不提供。
  */
 internal class SourcesCapability(
     val calendar: CalendarSource?,
     val alarms: NextAlarmSource?,
+    val notifications: NotificationSource? = null,
 ) : Capability {
     override val id = SOURCES
 
     override fun status(): CapabilityStatus = when {
-        calendar != null || alarms != null -> CapabilityStatus.Available
+        calendar != null || alarms != null || notifications != null -> CapabilityStatus.Available
         else -> CapabilityStatus.Unavailable("no device sources")
     }
 

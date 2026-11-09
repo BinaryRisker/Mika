@@ -109,4 +109,7 @@
     <string name="backup_imported">Diimpor. Rutinitas mati.</string>
     <string name="backup_failed">Berkas ini tidak bisa dibaca atau ditulis</string>
     <string name="backup_bad_password">Kata sandi salah</string>
+    <string name="packs_update_title">Perbarui %1$s?</string>
+    <string name="packs_update_confirm">Ganti</string>
+    <string name="packs_updated">Diperbarui %1$s</string>
 </resources>

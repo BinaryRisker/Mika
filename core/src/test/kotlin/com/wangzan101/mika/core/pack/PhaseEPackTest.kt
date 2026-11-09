@@ -61,6 +61,17 @@ class PhaseEPackTest {
         assertEquals("unknown_tool", (PackValidate.check(files, tools, emptySet()) as PackCheck.Rejected).reason)
     }
 
+    @Test fun updateDiffShowsSkillLineChangesBeforeReplace() {
+        val old = PackValidate.check(ExamplePack.files(), tools, emptySet()) as PackCheck.Ok
+        val files = ExamplePack.files().toMutableMap()
+        val md = files.getValue("skills/list-to-csv/SKILL.md").toString(Charsets.UTF_8) + "\n- 新的一行做法\n"
+        files["skills/list-to-csv/SKILL.md"] = md.toByteArray()
+        val incoming = PackValidate.check(files, tools, emptySet()) as PackCheck.Ok
+        val diff = PackDiff.of(old, incoming)
+        assertTrue(diff.skills.single { it.name == "list-to-csv" }.added.any { "新的一行做法" in it })
+        assertTrue(diff.summary().contains("→"))
+    }
+
     @Test fun uninstallDropsUnusedTemplatesAndCanKeepEnabledRoutines() {
         val ok = PackValidate.check(ExamplePack.files(), tools, emptySet()) as PackCheck.Ok
         val drop = PackLifecycle.uninstall(ok.manifest.id, ok.skills, ok.templates, enabledRoutineIds = emptySet(), keepEnabled = true)

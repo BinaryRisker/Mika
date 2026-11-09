@@ -181,4 +181,5 @@
     <string name="worth_prompt_hint">A short topic</string>
     <string name="worth_prompt_save">Save</string>
     <string name="pending_ask_reply">Question: %1$s\nMy answer: %2$s</string>
+    <string name="worth_reject">Not this kind</string>
 </resources>

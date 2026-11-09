@@ -79,4 +79,12 @@
     <string name="screens_needs_you">あなたの対応が必要</string>
     <string name="screens_zoom">この画面を拡大</string>
     <string name="routine_stopped_time">制限時間を過ぎたため停止しました</string>
+    <string name="notif_listen_title">通知の要約</string>
+    <string name="notif_listen_sub">オンにしたアプリのタイトルと本文を読みます</string>
+    <string name="notif_listen_grant">通知へのアクセスを許可</string>
+    <string name="notif_listen_grant_sub">システム設定が開きます。初期状態はオフです。</string>
+    <string name="notif_listen_grant_on">アクセスはオンです</string>
+    <string name="notif_listen_apps">アプリ</string>
+    <string name="notif_listen_empty">アクセスをオンにすると、通知を出したアプリがここに出ます。</string>
+    <string name="notif_listen_off">アクセスがオフのため、Mika は通知を読めません。</string>
 </resources>

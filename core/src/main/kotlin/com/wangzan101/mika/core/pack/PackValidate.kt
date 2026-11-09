@@ -30,6 +30,9 @@ sealed interface PackCheck {
     ) : PackCheck
 
     data class Rejected(val reason: String) : PackCheck
+
+    /** 已有同 id 的包：先给差异，用户确认后再 [PackStore.install] 且 replace=true。 */
+    data class Update(val incoming: Ok, val diff: PackUpdateDiff) : PackCheck
 }
 
 /**

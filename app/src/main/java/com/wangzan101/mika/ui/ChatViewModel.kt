@@ -400,7 +400,16 @@ class ChatViewModel(
     /** 还没答上的追问;人不在或进程被杀后仍显示在原对话。 */
     private val pendingAsks: StateFlow<List<com.wangzan101.mika.core.run.PendingAsk>> = MutableStateFlow(emptyList()),
     private val takePendingAsk: (String) -> com.wangzan101.mika.core.run.PendingAsk? = { null },
+    /** 这条对话是「值得看」时，结果卡上给「不要这类」。 */
+    private val worthConversation: (String) -> Boolean = { false },
+    private val rejectWorth: (String, String) -> Unit = { _, _ -> },
 ) {
+    fun showWorthReject(conversationId: String?): Boolean =
+        conversationId != null && worthConversation(conversationId)
+
+    fun rejectWorthSuggestion(conversationId: String, text: String) =
+        rejectWorth(conversationId, text)
+
     /** 用户在对话页上关掉留在后台的那一页。 */
     fun closeKeptPage() = closeKept()
 

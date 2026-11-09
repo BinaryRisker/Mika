@@ -109,4 +109,7 @@
     <string name="backup_imported">Importado. As rotinas estão desligadas.</string>
     <string name="backup_failed">Não foi possível ler ou gravar esse arquivo</string>
     <string name="backup_bad_password">Senha errada</string>
+    <string name="packs_update_title">Atualizar %1$s?</string>
+    <string name="packs_update_confirm">Substituir</string>
+    <string name="packs_updated">Atualizado %1$s</string>
 </resources>

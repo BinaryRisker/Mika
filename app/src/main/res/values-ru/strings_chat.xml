@@ -191,4 +191,5 @@
     <string name="worth_prompt_hint">Короткая тема</string>
     <string name="worth_prompt_save">Сохранить</string>
     <string name="pending_ask_reply">Вопрос: %1$s\nМой ответ: %2$s</string>
+    <string name="worth_reject">Не такое</string>
 </resources>

@@ -64,6 +64,57 @@ internal object ReadCalendar : SourcesTool {
     }
 }
 
+internal object ReadNotifications : SourcesTool {
+    override val verb = Verb.ReadNotifications
+    override val label = "读通知"
+    override val risk = Risk.Read
+    override val concurrency = Concurrency.ParallelSafe
+    override val def = ToolDef("read_notifications", Prompts.tool("read_notifications"), emptyMap(), emptyList())
+
+    override fun available(ctx: ToolContext) = ctx[SourcesCapability.KEY]?.notifications != null
+
+    override suspend fun execute(a: Args, ctx: ToolContext): ToolExecution {
+        val source = checkNotNull(ctx[SourcesCapability.KEY]?.notifications)
+        return when (val read = source.recent()) {
+            is NotificationRead.Ok -> ToolExecution(
+                buildJsonObject {
+                    put("ok", true)
+                    put("items", JsonArray(read.items.map { it.json() }))
+                },
+                observations = listOf(
+                    Observation(
+                        ObsKind.Read,
+                        if (read.items.isEmpty()) "没有可看的通知"
+                        else read.items.joinToString("\n") { n ->
+                            listOfNotNull(n.appLabel ?: n.packageName, n.title, n.text).filter { it.isNotBlank() }.joinToString(" · ")
+                        },
+                        source = name, trust = Trust.Trusted,
+                    ),
+                ),
+            )
+            is NotificationRead.Unauthorized -> ToolExecution(buildJsonObject {
+                put("ok", false)
+                put("error", "unauthorized")
+                put("message", "未授权")
+                put("how", read.howToGrant)
+            })
+            is NotificationRead.Failed -> ToolExecution(buildJsonObject {
+                put("ok", false)
+                put("error", "failed")
+                put("message", read.reason)
+            })
+        }
+    }
+
+    private fun NotificationPost.json() = buildJsonObject {
+        put("app", appLabel ?: packageName)
+        put("package", packageName)
+        put("title", title)
+        put("text", text)
+        put("atMs", atMs)
+    }
+}
+
 internal object ReadNextAlarm : SourcesTool {
     override val verb = Verb.ReadNextAlarm
     override val label = "下一个闹钟"

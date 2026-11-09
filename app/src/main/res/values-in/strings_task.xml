@@ -79,4 +79,12 @@
     <string name="screens_needs_you">Perlu Anda</string>
     <string name="screens_zoom">Perbesar layar ini</string>
     <string name="routine_stopped_time">Dihentikan: rutin ini melewati batas waktunya</string>
+    <string name="notif_listen_title">Ringkasan notifikasi</string>
+    <string name="notif_listen_sub">Membaca judul dan isi dari aplikasi yang Anda nyalakan</string>
+    <string name="notif_listen_grant">Izinkan akses notifikasi</string>
+    <string name="notif_listen_grant_sub">Membuka pengaturan sistem. Defaultnya mati.</string>
+    <string name="notif_listen_grant_on">Akses sudah aktif</string>
+    <string name="notif_listen_apps">Aplikasi</string>
+    <string name="notif_listen_empty">Setelah akses aktif, aplikasi yang mengirim notifikasi muncul di sini.</string>
+    <string name="notif_listen_off">Akses mati. Mika tidak bisa membaca notifikasi.</string>
 </resources>

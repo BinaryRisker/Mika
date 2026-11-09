@@ -668,7 +668,7 @@ private fun LazyListScope.exchange(
     joined.forEach(::steer)
     ex.draft?.takeIf(String::isNotBlank)?.let { draft -> item("d$index") { DraftText(draft, ex.waitingForModel) } }
     waiting.forEach(::steer)
-    item("r$index") { StatusCard(ex.status, stage, vm, ex.runId, loadSource, openSource, "r$index") }
+    item("r$index") { StatusCard(ex.status, stage, vm, ex.runId, loadSource, openSource, "r$index", conversationId) }
     // 这一轮结束后留在后台运行的那一页:还开着是绿色一行(能关),关了是一句原因
     keptPageRow(index, ex, kept, vm::closeKeptPage)
     if (ex.files.isNotEmpty()) item("f$index") { FileCards(ex.files) }
@@ -1063,6 +1063,7 @@ private fun StatusCard(
     loadSource: suspend (String) -> EvidenceSource?, openSource: (String?, String?) -> Unit,
     /** 回答的长按菜单认这一条用的(见 [MessageArea])。 */
     key: String,
+    conversationId: String? = null,
 ) {
     when (status) {
         ExchangeStatus.Working -> Unit
@@ -1124,6 +1125,7 @@ private fun StatusCard(
                     MarkdownText(status.answer, AnswerText.copy(color = MikaTheme.colors.ink))
                     // 来源:旧记录里模型写的依据文字,或运行记录里代码记下的来源;都没有就不显示
                     if (status.evidence != null || runId != null) SourceChip(status.evidence, runId, loadSource, openSource)
+                    WorthRejectLink(vm, conversationId, status.answer)
                 }
             }
         }
@@ -1167,6 +1169,17 @@ private fun SourceChip(text: String?, runId: String?, loadSource: suspend (Strin
     ) {
         Icon(MikaIcons.Link, null, Modifier.size(15.dp), tint = c.ink2)
         Text(sourceLabel(source), style = PillText, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun WorthRejectLink(vm: ChatViewModel, conversationId: String?, answer: String) {
+    if (conversationId == null || !vm.showWorthReject(conversationId)) return
+    var done by remember(conversationId, answer) { mutableStateOf(false) }
+    if (done) return
+    TextLink(stringResource(R.string.worth_reject)) {
+        vm.rejectWorthSuggestion(conversationId, answer)
+        done = true
     }
 }
 
